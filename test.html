@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <script src="https://cdn.jsdelivr.net/npm/danfojs@1.2.0/lib/bundle.min.js"></script>
+    <title>Document</title>
+</head>
+
+<body>
+<input type="file" id="file" name="file">
+<script>
+  
+  const inputFile = document.querySelector("#file");     
+  
+  inputFile.addEventListener("change", async () => {
+    const csvFile = inputFile.files[0]
+    dfd.readCSV(csvFile).then((df) => {
+        //df.print()
+        processCSVData(df)
+    })
+  })
+
+  const processCSVData = (df) => {
+
+    console.log("\nDescribe the dataframe:\n");
+    df.describe().print() // note that describe() only summarizes numeric columns
+
+    // Add quarter column
+    let dates = df["Date"].values.map(d => new Date(d));
+    let quarters = dates.map(d => "Q" + (Math.floor(d.getMonth() / 3) + 1));
+    df.addColumn("Quarter", quarters, { inplace: true });
+    
+
+    // Sales by quarter
+    const salesByQuarter = df.groupby(["Quarter"]).col(["Sales"]).sum();
+
+    // Sales by region
+    const salesByRegion = df.groupby(["Region"]).col(["Sales"]).sum();
+
+    // Avg customer satisfaction by product
+    const satisfactionByProduct = df.groupby(["Product"]).col(["Customer_Satisfaction"]).mean();
+
+    // ---- PRINT RESULTS LOCALLY ----
+    console.log("\nSales by Quarter:\n");
+    console.log(JSON.stringify(salesByQuarter.values));
+    salesByQuarter.print();
+
+    console.log("\nSales by Region:\n");
+    salesByRegion.print();
+
+    console.log("\nAverage Satisfaction by Product:\n");
+    satisfactionByProduct.print();
+
+    // ---- FORMAT RESULTS FOR LLM ----
+    const stats = `
+    Quarterly Sales: ${JSON.stringify(salesByQuarter.values)}
+    Regional Sales: ${JSON.stringify(salesByRegion.values)}
+    Product Satisfaction: ${JSON.stringify(satisfactionByProduct.values)}
+    `;
+
+
+  }
+
+
+    
+      
+</script>
+</body>
+
+</html>

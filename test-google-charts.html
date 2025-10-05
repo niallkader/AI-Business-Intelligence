@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <script src="https://cdn.jsdelivr.net/npm/danfojs@1.2.0/lib/bundle.min.js"></script>
+     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+	    <title>Document</title>
+</head>
+
+<body>
+<input type="file" id="file" name="file">
+<div id="quarterlySales"></div>
+<div id="regionalSales"></div>
+<div id="productSatisfaction"></div>
+<div id="quarterlySalesByRegion"></div>
+
+<script type="text/javascript">
+	google.charts.load('current', {'packages':['corechart']});
+	google.charts.setOnLoadCallback(() => {
+    
+    const inputFile = document.querySelector("#file");     
+    
+    inputFile.addEventListener("change", async () => {
+      const csvFile = inputFile.files[0]
+      dfd.readCSV(csvFile).then((df) => {
+        //df.print()
+        processCSVData(df)
+      })
+    })
+
+    const processCSVData = (df) => {
+
+      console.log("\nDescribe the dataframe:\n");
+      df.describe().print() // note that describe() only summarizes numeric columns
+
+      // Add quarter column
+      let dates = df["Date"].values.map(d => new Date(d));
+      let quarters = dates.map(d => "Q" + (Math.floor(d.getMonth() / 3) + 1));
+      df.addColumn("Quarter", quarters, { inplace: true });
+
+      
+      // Add a column for Age Groups
+      // Define age bins
+      const ageBins = [0, 25, 35, 50, 65, 100];  // adjust as needed
+      const ageLabels = ["<25", "26-35", "36-50", "51-65", "65+"];
+
+      let ages = df["Customer_Age"].values;
+      let ageGroups = ages.map(age => {
+        if (age <= 25) return "<25";
+        if (age <= 35) return "26-35";
+        if (age <= 50) return "36-50";
+        if (age <= 65) return "51-65";
+        return "65+";
+      });
+
+      // Add new column
+      df.addColumn("Age_Group", ageGroups, { inplace: true });
+      
+      
+
+
+      // Sales by quarter
+      const salesByQuarter = df.groupby(["Quarter"]).col(["Sales"]).sum();
+       
+
+      // Sales by region
+      const salesByRegion = df.groupby(["Region"]).col(["Sales"]).sum();
+
+      // Sales by quarter and region
+      const salesByQuarterRegion = df.groupby(["Quarter", "Region"]).col(["Sales"]).sum();
+
+      // Avg customer satisfaction by product
+      const satisfactionByProduct = df.groupby(["Product"]).col(["Customer_Satisfaction"]).mean();
+
+      // Sales by product and gender
+      const salesByProductAndGender = df.groupby(["Product", "Customer_Gender"]).col(["Sales"]).sum();
+
+       // Avg customer satisfaction by product
+      const satisfactionByProductAndGender = df.groupby(["Product", "Customer_Gender"]).col(["Customer_Satisfaction"]).mean();
+
+      // Sales (total) by date:
+      const salesByDate = df.groupby(["Date"]).col(["Sales"]).sum();
+
+      /*
+      THIS ONE IS NOT USEFUL BECAUSE EVERY SINGLE ROW IN THE DATASET HAS A UNIQUE DATE
+      // Sales (total) by date and product:
+      const salesByDateAndProduct = df.groupby(["Date", "Product"]).col(["Sales"]).sum();
+      */
+
+      // Sales by age
+      const salesByAge = df.groupby(["Age_Group"]).col(["Sales"]).sum();
+      
+
+
+
+
+  
+
+      // ---- PRINT RESULTS LOCALLY ----
+      console.log("\nSales by Quarter:\n");
+      //console.log(JSON.stringify(salesByQuarter.values));
+      salesByQuarter.print(); // Note that print() only prints the first 10 rows
+
+      console.log("\nSales by Region:\n");
+      salesByRegion.print();
+
+      console.log("\nSales by Quarter and Region:\n");
+      //console.log(JSON.stringify(salesByQuarterRegion.values));
+      salesByQuarterRegion.print();
+
+      console.log("\nAverage Satisfaction by Product:\n");
+      satisfactionByProduct.print();
+
+      console.log("\nSales by Product and Gender:\n");
+      //console.log(JSON.stringify(salesByProductAndGender.values));
+      salesByProductAndGender.print();
+      
+      console.log("\nAverage Satisfaction by Product and Gender:\n");
+      satisfactionByProductAndGender.print();
+
+
+      /*
+      By default print() just shows 10 rows, here's how you can get it to show all rows:
+      
+          df.print({ maxRows: df.shape[0] });
+      
+      Note that df.shape[0] = number of rows in your DataFrame.
+      Passing it as maxRows tells Danfo to display that many rows.
+      */
+      console.log("\nSales by date:")
+      salesByDate.print({ maxRows: salesByDate.shape[0] }); // SHOULD show all rows
+
+
+      /*
+      NOT USEFUL
+      console.log("\nSales by date and product:")
+      salesByDateAndProduct.print({ maxRows: salesByDateAndProduct.shape[0] }); // SHOULD show all rows
+      */
+
+      console.log("\nSales by age:")
+      salesByAge.print();
+
+
+      // ---- FORMAT RESULTS FOR LLM ----
+      const stats = `
+      Quarterly Sales: ${JSON.stringify(salesByQuarter.values)}
+      Regional Sales: ${JSON.stringify(salesByRegion.values)}
+      Product Satisfaction: ${JSON.stringify(satisfactionByProduct.values)}
+      Quarterly Sales by Region: ${JSON.stringify(salesByQuarterRegion.values)}
+      Sales by Product and Gender: ${JSON.stringify(salesByProductAndGender.values)}
+      Satisfaction by Product and Gender: ${JSON.stringify(satisfactionByProductAndGender.values)}
+      Sales by Date: ${JSON.stringify(salesByDate.values)}
+      Sales by Age: ${JSON.stringify(salesByAge.values)}
+      `;
+
+      // ---- CREATE THE CHARTS ----
+      createQuarterlySalesChart(salesByQuarter.values);
+      createRegionalSalesChart(salesByRegion.values);
+      createProductSatisfactionChart(satisfactionByProduct.values);
+      createQuarterlySalesByRegionChart(salesByQuarterRegion.values);
+      // TODO:
+      // createSalesByProductandGenderChart()
+      // createSalesByDateChart()
+      // createSalesByAgeChart()
+
+
+    }// end processCSVData
+
+    const createQuarterlySalesChart = (data) => {
+
+      //console.log(data)
+
+      // Sort the data so that Q1 is first, then Q2, etc. (the data from the dataframe is not sorted properly)
+      data.sort((a, b) => {
+        const quarterA = parseInt(a[0].slice(1));
+        const quarterB = parseInt(b[0].slice(1));
+        return quarterA - quarterB;
+      });
+
+      // const dataTable = google.visualization.arrayToDataTable([
+      //   ["Quarter", "Sales"],
+      //   ['Q4', 324043],
+      //   ['Q1', 347709],
+      //   ['Q2', 356649],
+      //   ['Q3', 354819],
+      // ],
+      // false); // 'false' means that the first row contains labels, not data.
+
+      const dataTable = google.visualization.arrayToDataTable([
+        ["Quarter", "Sales"],
+        ...data
+      ],
+      false); // 'false' means that the first row contains labels, not data.
+
+			const options = {
+				title: "Sales By Quarter"
+			};
+
+			const chart = new google.visualization.LineChart(document.querySelector("#quarterlySales"));
+			chart.draw(dataTable, options)
+    }
+
+    const createRegionalSalesChart = (data) => {
+
+      const dataTable = google.visualization.arrayToDataTable([
+        ["Region", "Sales"],
+        ...data
+      ],
+      false); // 'false' means that the first row contains labels, not data.
+
+			const options = {
+				title: "Sales By Region"
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#regionalSales"));
+			chart.draw(dataTable, options)
+
+    }
+
+    const createProductSatisfactionChart = (data) => {
+
+      const dataTable = google.visualization.arrayToDataTable([
+        ["Product", "Satisfaction"],
+        ...data
+      ],
+      false); // 'false' means that the first row contains labels, not data.
+
+			const options = {
+				title: "Product Satisfaction"
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#productSatisfaction"));
+			chart.draw(dataTable, options)
+
+    }
+
+    const createQuarterlySalesByRegionChart = (data) => {
+      
+      console.log(JSON.stringify(data));
+
+      /*
+      // This is how the data needs to be formatted:
+      const dataTable = google.visualization.arrayToDataTable([
+        ["Quarter", "North","East","South","West"],
+        ["Q1", 5000, 10000, 200, 400],
+        ["Q2", 5000, 10000, 200, 400],
+        ["Q3", 5000, 10000, 200, 400],
+        ["Q4", 5000, 10000, 200, 400],
+      ],
+      false); // 'false' means that the first row contains labels, not data.
+      */
+
+      /*
+      // I prompted AI to help me this this one, here's what I said:
+      How can I transform the first dataset so that it's structured like the second dataset?
+      Here's the first dataset:
+
+      [["Q4","South",74996],["Q4","West",79500],["Q4","North",93427],["Q4","East",76120],["Q1","East",78165],["Q1","North",79078],["Q1","South",91364],["Q1","West",99102],["Q2","South",91721],["Q2","East",88370],["Q2","West",83044],["Q2","North",93514],["Q3","West",99737],["Q3","North",87006],["Q3","South",90435],["Q3","East",77641]]
+
+      Here's the second dataset (with placeholders for data inside the curly braces):
+
+      [
+        ["Quarter", "North","East","South","West"],
+        ["Q1", {Q1 sales for North}, {Q1 sales for East}, {Q1 sales for South}, {Q1 sales for West}],
+        ["Q2", {Q2 sales for North}, {Q2 sales for East}, {Q2 sales for South}, {Q2 sales for West}],
+        ["Q3", {Q3 sales for North}, {Q3 sales for East}, {Q3 sales for South}, {Q3 sales for West}],
+        ["Q4", {Q4 sales for North}, {Q4 sales for East}, {Q4 sales for South}, {Q4 sales for West}],
+      ]
+      */
+
+      // Create a map to organize data by quarter and region
+      const quarterMap = {};
+
+      /*
+      data.forEach((item) => {
+        const quarter = item[0];
+        const region = item[1];
+        const sales = item[2];
+        
+        if (!quarterMap[quarter]) {
+          quarterMap[quarter] = {};
+        }
+        quarterMap[quarter][region] = sales;
+      });
+      */
+
+      // this is the same as the above loop, but a little more concise
+      data.forEach(([quarter, region, sales]) => {
+        if (!quarterMap[quarter]) {
+          quarterMap[quarter] = {};
+        }
+        quarterMap[quarter][region] = sales;
+      });
+
+      // Build the result array
+      const result = [
+        ["Quarter", "North", "East", "South", "West"]
+      ];
+
+      ["Q1", "Q2", "Q3", "Q4"].forEach(quarter => {
+        result.push([
+          quarter,
+          quarterMap[quarter]["North"],
+          quarterMap[quarter]["East"],
+          quarterMap[quarter]["South"],
+          quarterMap[quarter]["West"]
+        ]);
+      });
+
+      const dataTable = google.visualization.arrayToDataTable(result, false); // 'false' means that the first row contains labels, not data.
+
+			const options = {
+				title: "Quarterly Sales By Region"
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#quarterlySalesByRegion"));
+			chart.draw(dataTable, options)
+
+    }
+
+
+  })
+
+
+  
+  
+
+
+    
+      
+</script>
+</body>
+
+</html>
