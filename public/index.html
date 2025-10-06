@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/danfojs@1.2.0/lib/bundle.min.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+	  <title>AI Business Analyts</title>
+</head>
+
+<body>
+<input type="file" id="file" name="file">
+<input type="button" id="btnTest" value="TEST LLM">
+<div id="regionalSales"></div>
+
+
+<script type="text/javascript">
+	google.charts.load('current', {'packages':['corechart']});
+	google.charts.setOnLoadCallback(() => {
+
+    // NOTE: that I tried to send the entire raw data from the .csv file to the LLM
+    // but it exceeded chat gpt's token limits
+
+    let context = ""
+    
+    const testBtn = document.querySelector("#btnTest");
+    testBtn.addEventListener("click", async () => {
+      const result = await axios.post("/api/test", {context})
+      console.log(result);
+    })
+    
+    const inputFile = document.querySelector("#file");     
+    
+    inputFile.addEventListener("change", async () => {
+      const csvFile = inputFile.files[0]
+      dfd.readCSV(csvFile).then((df) => {
+        //df.print()
+        processCSVData(df)
+      })
+    })
+
+    const processCSVData = (df) => {
+
+      console.log("\nDescribe the dataframe:\n");
+      df.describe().print() // note that describe() only summarizes numeric columns
+
+      // Get values from date column and convert each string into a date obj
+      // We'll use this dates array to add columns to our data frame
+      //const dates = df["Date"].values.map(d => new Date(d));
+      const dates = df["Date"].values.map(d => {
+        const [year, month, day] = d.split('-');
+        const date = new Date(year, month - 1, day);
+        return date;
+      });
+
+      
+      // Add a column for Age Groups, use the Customer_Age column to do it
+      // Age groups are <25, 26-35,36-50,51-65, and 65+
+      let ages = df["Customer_Age"].values;
+      let ageGroups = ages.map(age => {
+        if (age <= 25) return "<25";
+        if (age <= 35) return "26-35";
+        if (age <= 50) return "36-50";
+        if (age <= 65) return "51-65";
+        return "65+";
+      });
+
+      // Add an Age_Group column to the data frame
+      df.addColumn("Age_Group", ageGroups, { inplace: true });
+
+
+      // Add Month/Year column like  "Aug 2022" so that we can aggregate monthly sales
+      //let months = dates.map(d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+      let months = dates.map(d => `${getMonthName(d.getMonth())} ${d.getFullYear()}`);
+      df.addColumn("Month", months, { inplace: true });
+      
+      // helper function to get month name from 
+      function getMonthName(monthNumber){
+        const months = ["Jan","Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        return months[monthNumber];
+      }
+
+      // Add column that shows day of week of sale
+      let dayNames = dates.map(d => getDayName(d))
+      df.addColumn("Day", dayNames, { inplace: true });
+      // helper function to get day name from a Date obj
+      function getDayName(date){
+        days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        return days[date.getDay()]
+      }
+
+
+      //--------Create data frames with groupings----------//      
+
+      // Sales by region
+      const salesByRegion = df.groupby(["Region"]).col(["Sales"]).sum();
+      salesByRegion.print()
+
+      
+
+
+      // ---- FORMAT RESULTS FOR LLM ----
+      context += `
+      Regional Sales: ${JSON.stringify(salesByRegion.values)}
+
+      `;
+
+      // ---- CREATE THE CHARTS ----
+      createRegionalSalesChart(salesByRegion.values);
+
+    }// end processCSVData
+
+    
+
+    const createRegionalSalesChart = (data) => {
+
+      const dataTable = google.visualization.arrayToDataTable([
+        ["Region", "Sales"],
+        ...data
+      ],
+      false); // 'false' means that the first row contains labels, not data.
+
+      const options = {
+        title: "Sales By Region"
+      };
+
+      const chart = new google.visualization.ColumnChart(document.querySelector("#regionalSales"));
+      chart.draw(dataTable, options)
+
+    }
+
+  })
+
+</script>
+</body>
+
+</html>
