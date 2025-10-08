@@ -27,6 +27,53 @@
 <div id="salesByDayAndProduct"></div>
 
 <script type="text/javascript">
+
+  const MYPROCESSDATA = (data, columns) => {
+    console.log(columns);
+
+    processProductSales("Widget A")
+    processProductSales("Widget B")
+    processProductSales("Widget C")
+    processProductSales("Widget D")
+
+    function processProductSales(productName){
+      const widgetARows = data.filter(row => row[1] == productName)
+      console.log(widgetARows);
+
+      let widgetATotalSales = 0;
+      let monthMap = {}
+      widgetARows.forEach( r => {
+        widgetATotalSales += r[3];
+        const yearAndMonth = r[0].slice(0,7)
+        if(!monthMap[yearAndMonth]){
+          monthMap[yearAndMonth] = []
+        }
+        monthMap[yearAndMonth].push(r[3])
+      })
+      console.log(productName + " TOTAL SALES: " + widgetATotalSales)
+      console.log(productName + " AVG SALES: " + widgetATotalSales/widgetARows.length)
+      console.log(monthMap);
+
+      const avgMonthlySales = {};
+      for(key in monthMap){
+        avgMonthlySales[key] = monthMap[key].reduce((ac, cv) => ac += cv, 0)/monthMap[key].length;
+      }
+      console.log(avgMonthlySales);
+
+      let totalSalesPerMonth = 0;
+      let counter = 0
+      for(key in avgMonthlySales){
+        counter++;
+        totalSalesPerMonth += avgMonthlySales[key];
+      }
+
+      console.log(productName + " AVG SALES PER MONTH: ", totalSalesPerMonth/counter);
+    }
+
+  }
+
+
+
 	google.charts.load('current', {'packages':['corechart']});
 	google.charts.setOnLoadCallback(() => {
     
@@ -36,6 +83,7 @@
       const csvFile = inputFile.files[0]
       dfd.readCSV(csvFile).then((df) => {
         //df.print()
+        MYPROCESSDATA(df.values, df.$columns)
         processCSVData(df)
       })
     })
@@ -43,7 +91,8 @@
     const processCSVData = (df) => {
 
       console.log("\nDescribe the dataframe:\n");
-      df.describe().print() // note that describe() only summarizes numeric columns
+      //df.describe().print() // note that describe() only summarizes numeric columns
+      //console.log(df.describe())
 
       // Get values from date column and convert each string into a date obj
       // We'll use this dates array to add columns to our data frame
@@ -136,7 +185,23 @@
 
       // Group sales by month
       const salesByMonth = df.groupby(["Month"]).col(["Sales"]).sum();
-      
+
+      //// Avg monthly sales by product
+      // const avgMonthlySalesByProduct = df.groupby(["Product","Month"]).col(["Sales"]).mean();
+      // avgMonthlySalesByProduct.print()
+      // console.log(JSON.stringify(avgMonthlySalesByProduct.values))
+
+
+
+// TO GET EACH PRODUCTS AVG MONTHLY SALES
+let avgSalesByMonth = df.groupby(["Month", "Product", "Sales"]).col(["Sales"]).mean();
+avgSalesByMonth.print()
+// Now average again, but only by Product
+let avgSalesByProduct = avgSalesByMonth.groupby(["Product"]).col(["Sales"]).mean();
+avgSalesByProduct.print()
+
+
+
 
       // Sales by day name
       const salesByDayOfWeek = df.groupby(["Day"]).col(["Sales"]).sum();
@@ -146,6 +211,22 @@
 
 
       // ---- PRINT RESULTS LOCALLY ---- //
+      console.log("\nData Description:\n")
+      df.describe().print() // note that describe() only summarizes numeric columns
+      
+      // I had to do some wrangling to get df.describe().print() into a format that I can feed to the LLMs!!!
+      const dfObj = df.describe()
+      const columns = [...dfObj.$columns]
+      const indexes = [...dfObj.$index]
+      const rows = [...dfObj.$data];
+      indexes.forEach((indexName, i) => rows[i].unshift(indexName))
+      rows.unshift(["Metric", ...columns]);
+      console.log(JSON.stringify(rows));
+      const dataDescription = rows;
+      
+      
+      
+
 
       console.log("\nSales by Region:\n");
       salesByRegion.print(); // Note that print() only prints the first 10 rows
@@ -201,26 +282,28 @@
 
       console.log("\nSales by Day of Week and Product:\n");
       salesByDayOfWeekAndProduct.print();
+     
 
+      const processedData = {
+        dataDescription: dataDescription,
+        regionalSales: salesByRegion.values,
+        productSalesByRegion: salesByRegionAndProduct.values,
+        productSatisfaction: satisfactionByProduct.values,
+        salesByProductAndGender: salesByProductAndGender.values,
+        satisfactionByProductAndGender: satisfactionByProductAndGender.values,
+        satisfactionByProductAndAgeGroup: satisfactionByProductAndAgeGroup.values,
+        //salesByDate: salesByDate.values,
+        salesByAge: salesByAge.values,
+        salesByProduct: salesByProduct.values,
+        salesByProductAndAge: salesByProductAndAge.values,
+        salesByProductGenderAndAge: salesByProductGenderAndAge.values,
+        salesByMonth: salesByMonth.values,
+        salesByAgeGroupAndGender: salesByAgeGroupAndGender.values,
+        salesByDayOfWeek: salesByDayOfWeek.values,
+        salesByDayOfWeekAndProduct: salesByDayOfWeekAndProduct.values
+      };
+      console.log(JSON.stringify(processedData))
 
-      // ---- FORMAT RESULTS FOR LLM ----
-      const stats = `
-      Regional Sales: ${JSON.stringify(salesByRegion.values)}
-      Product Sales by Regtion: ${JSON.stringify(salesByRegionAndProduct.values)}
-      Product Satisfaction: ${JSON.stringify(satisfactionByProduct.values)}
-      Sales by Product and Gender: ${JSON.stringify(salesByProductAndGender.values)}
-      Satisfaction by Product and Gender: ${JSON.stringify(satisfactionByProductAndGender.values)}
-      Satisfaction by Product and Age Group: ${JSON.stringify(satisfactionByProductAndAgeGroup.values)}
-      Sales by Date: ${JSON.stringify(salesByDate.values)}
-      Sales by Age Group: ${JSON.stringify(salesByAge.values)}
-      Sales by Product: ${JSON.stringify(salesByProduct.values)}
-      Sales by Product and Age: ${JSON.stringify(salesByProductAndAge.values)}
-      Sales by Product, Gender, and Age: ${JSON.stringify(salesByProductGenderAndAge.values)}
-      Sales by Month: ${JSON.stringify(salesByMonth.values)}
-      Sales by Age Group and Gender: ${JSON.stringify(salesByAgeGroupAndGender.values)}
-      Sales by Day of Week: ${JSON.stringify(salesByDayOfWeek.values)}
-      Sales by Day of Week and Product: ${JSON.stringify(salesByDayOfWeekAndProduct.values)}
-      `;
 
       // ---- CREATE THE CHARTS ----
       createRegionalSalesChart(salesByRegion.values);
