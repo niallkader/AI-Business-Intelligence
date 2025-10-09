@@ -8,7 +8,7 @@ import { StateGraph, END } from "@langchain/langgraph";
 //import * as fs from "fs";
 
 // Configuration - Switch between OpenAI and Ollama
-const USE_OPENAI = false; // Set to false to use Ollama
+const USE_OPENAI = true; // Set to false to use Ollama
 
 const model = USE_OPENAI
   ? new ChatOpenAI({ 
@@ -71,6 +71,63 @@ salesByDayOfWeekAndProduct
 REMOVE salesByDate
 */
 
+
+/////////////TEST PROMPTS
+let prompt, chain, result;
+/*
+prompt = ChatPromptTemplate.fromMessages([
+  ["system", `You are a data analyst. Find the specific data requested from this dataset:
+{salesData} :
+  `],
+  ["user", `{query}`]
+]);
+chain = prompt.pipe(model).pipe(new StringOutputParser());
+result = await chain.invoke({
+  salesData: JSON.stringify(processedData.salesByMonth, null, 2),
+  query: "Find the total product sales for October 2028."
+});
+
+console.log("RESULT:\n", result);
+process.exit()
+*/
+
+
+// let productSalesByAgeGroup = [
+//   ["Product","<25","26-35","36-50","51-65","65+", "Total"],
+//   ["Widget C",55217,73254,93909,88811,23878, 335069],
+//   ["Widget D",43261,77306,84403,102164,19720, 326854],
+//   ["Widget A",53913,74165,113537,106071,27549, 375235],
+//   ["Widget B",57639,59800,100035,96980,31608, 346062]
+// ]
+
+let productSalesByAgeGroup = `
+"Product","<25","26-35","36-50","51-65","65+", "Total",
+"Widget C",55217,73254,93909,88811,23878, 335069,
+"Widget D",43261,77306,84403,102164,19720, 326854,
+"Widget A",53913,74165,113537,106071,27549, 375235,
+"Widget B",57639,59800,100035,96980,31608, 346062`
+
+
+
+
+prompt = ChatPromptTemplate.fromMessages([
+  ["system", `You are a data analyst specialist. Find the specific data requested from this dataset:
+{salesData} :
+  `],
+  ["user", `{query}`]
+]);
+chain = prompt.pipe(model).pipe(new StringOutputParser());
+result = await chain.invoke({
+  salesData: JSON.stringify(productSalesByAgeGroup, null, 2),
+  query: "Find insights from this dataset, which shows product sales (in dollars) by age group"
+});
+
+console.log("RESULT:\n", result);
+process.exit()
+
+
+///////////////////////////////////////////////////////////////////////////////////////
+
 // Define the state structure
 class AgentState {
   constructor() {
@@ -108,6 +165,9 @@ Product Satisfaction Scores:
 Sales by Product, Gender, and Age:
 {salesByProductGenderAndAge}
 
+Sales by Month:
+{salesByMonth}
+
 Provide a structured analysis with specific insights.`]
   ]);
 
@@ -118,7 +178,8 @@ Provide a structured analysis with specific insights.`]
     salesByDayOfWeekAndProduct: JSON.stringify(state.processedData.salesByDayOfWeekAndProduct, null, 2),
     productSatisfaction: JSON.stringify(state.processedData.productSatisfaction, null, 2),
     //salesByProductAndGender: JSON.stringify(state.processedData.salesByProductAndGender, null, 2) // removed this, it's already covered
-    salesByProductGenderAndAge: JSON.stringify(state.processedData.salesByProductGenderAndAge, null, 2)
+    salesByProductGenderAndAge: JSON.stringify(state.processedData.salesByProductGenderAndAge, null, 2),
+    salesByMonth: JSON.stringify(state.processedData.salesByMonth, null, 2)
   });
 
   state.patternFindings = result;
@@ -126,8 +187,64 @@ Provide a structured analysis with specific insights.`]
   return state;
 }
 
-patternRecognitionAgent({processedData}).then((state) => {
+
+const state = new AgentState();
+
+/*
+// Test the Pattern Recognition Agent function
+patternRecognitionAgent(state).then((state) => {
   console.log("Pattern Findings:\n", state.patternFindings);
 }).catch((error) => {
   console.error("Error in Pattern Recognition Agent:", error);
 });
+*/
+
+await patternRecognitionAgent(state);
+console.log("Pattern Findings:\n", state.patternFindings);
+
+
+/*
+// Agent 2: Customer Segmentation Analyst
+async function demographicAnalyst(state) {
+  console.log("\n👥 Agent 2: Customer Segmentation Analyst - Analyzing demographics...");
+  
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", `You are a customer segmentation specialist. Using the pattern findings and demographic data:
+1. Identify which demographic segments are most valuable
+2. Find satisfaction gaps across demographics
+3. Determine which groups need attention for specific products
+4. Provide actionable demographic insights
+
+Reference the pattern findings to build on existing insights.`],
+    ["user", `Previous Pattern Findings:
+{patternFindings}
+
+Satisfaction by Product and Gender:
+{satisfactionByGender}
+
+Satisfaction by Product and Age Group:
+{satisfactionByAge}
+
+Sales by Product Gender and Age:
+{salesByProductGenderAndAge}
+
+Provide demographic insights and recommendations.`]
+  ]);
+
+  const chain = prompt.pipe(model).pipe(new StringOutputParser());
+  
+  const result = await chain.invoke({
+    patternFindings: state.patternFindings,
+    satisfactionByGender: JSON.stringify(state.processedData.satisfactionByProductAndGender, null, 2),
+    satisfactionByAge: JSON.stringify(state.processedData.satisfactionByProductAndAgeGroup, null, 2),
+    salesByProductGenderAndAge: JSON.stringify(state.processedData.salesByProductAndGenderAndAgeGroup, null, 2)
+  });
+
+  state.demographicInsights = result;
+  console.log("✅ Demographic analysis complete");
+  return state;
+}
+
+await demographicAnalyst(state);
+console.log("Demographic Insights:\n", state.demographicInsights);
+*/

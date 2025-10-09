@@ -8,7 +8,8 @@ import { StateGraph, END } from "@langchain/langgraph";
 //import * as fs from "fs";
 
 // Configuration - Switch between OpenAI and Ollama
-const USE_OPENAI = false; // Set to false to use Ollama
+const USE_OPENAI = true; // Set to false to use Ollama
+console.log("OPEN AI:" + USE_OPENAI);
 
 const model = USE_OPENAI
   ? new ChatOpenAI({ 
