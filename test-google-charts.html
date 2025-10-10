@@ -20,11 +20,16 @@
 <div id="productSales"></div>
 <div id="salesByProductAndAgeGroup"></div>
 <div id="salesByProductGenderAndAgeGroup"></div>
-<div id="salesByMonth"></div>
+<div id="satisfactionByProductGenderAndAgeGroup"></div>
+<div id="salesByMonthAndYear"></div>
 <div id="salesByAgeGroup"></div>
 <div id="salesByAgeGroupAndGender"></div>
 <div id="salesByDayOfWeek"></div>
 <div id="salesByDayAndProduct"></div>
+<p>I THINK IN NEED TO USE AVG SALES FOR THESE NEXT THREE CHARTS BECAUSE WE DON'T HAVE DATA FOR NOV AND DEC</p>
+<div id="salesByMonthName"></div>
+<div id="salesByProductAndMonthName"></div>
+<div id="salesByMonthNameAndProduct"></div>
 
 <script type="text/javascript">
 
@@ -88,6 +93,9 @@
       })
     })
 
+    // this object will get posted to the server to feed to the agents
+    postCSVData = {}
+
     const processCSVData = (df) => {
 
       //console.log("\nDescribe the dataframe:\n");
@@ -105,13 +113,14 @@
 
       
       // Add a column for Age Groups, use the Customer_Age column to do it
-      // Age groups are <25, 26-35,36-50,51-65, and 65+
+      // Age groups are <25, 26-35,36-45,46-55,56-65,and 65+
       let ages = df["Customer_Age"].values;
       let ageGroups = ages.map(age => {
         if (age <= 25) return "<25";
         if (age <= 35) return "26-35";
-        if (age <= 50) return "36-50";
-        if (age <= 65) return "51-65";
+        if (age <= 45) return "36-45";
+        if (age <= 55) return "46-55";
+        if (age <= 65) return "56-65";
         return "65+";
       });
 
@@ -131,7 +140,7 @@
       }
 
 
-      let monthNames = months.map(m => m.slice(0,4));
+      let monthNames = months.map(m => m.slice(0,3));
       df.addColumn("Month_Name", monthNames, {inplace:true})
       //df.print();
 
@@ -148,119 +157,6 @@
       }
 
 
-      //--------Create data frames with groupings----------//      
-
-      // Sales by region
-      const salesByRegion = df.groupby(["Region"]).col(["Sales"]).sum();
-      console.log("SALES BY REGION")
-      salesByRegion.print();
-      console.log(dfd.toCSV(salesByRegion))
-
-      // Sales by region and product
-      const salesByRegionAndProduct = df.groupby(["Region", "Product"]).col(["Sales"]).sum();
-      console.log("SALES BY REGION AND PRODUCT")
-      salesByRegionAndProduct.print();
-      console.log(dfd.toCSV(salesByRegionAndProduct))
-      
-      // Sales by product and gender
-      const salesByProductAndGender = df.groupby(["Product", "Customer_Gender"]).col(["Sales"]).sum();
-      console.log("SALES BY PRODUCT AND GENDER")
-      salesByProductAndGender.print();
-      console.log(dfd.toCSV(salesByProductAndGender))
-
-      // Sales (total) by date:
-      const salesByDate = df.groupby(["Date"]).col(["Sales"]).sum();
-      console.log("SALES BY DATE")
-      salesByDate.print()
-      console.log(dfd.toCSV(salesByDate))
-
-      // Avg customer satisfaction by product
-      const satisfactionByProduct = df.groupby(["Product"]).col(["Customer_Satisfaction"]).mean();
-      console.log("AVG SATISFACTION BY PRODUCT")
-      satisfactionByProduct.print()
-      console.log(dfd.toCSV(satisfactionByProduct))
-
-       // Avg customer satisfaction by product and gender
-      const satisfactionByProductAndGender = df.groupby(["Product", "Customer_Gender"]).col(["Customer_Satisfaction"]).mean();
-      console.log("AVG SATISFATION BY PRODUCT AND GENDER")
-      satisfactionByProductAndGender.print()
-      console.log(dfd.toCSV(satisfactionByProductAndGender))
-
-      // Avg customer satisfaction by product and gender
-      const satisfactionByProductAndAgeGroup = df.groupby(["Product", "Age_Group"]).col(["Customer_Satisfaction"]).mean();
-      console.log("AVG SATISFACTION BY PRODUCT AND AGE")
-      satisfactionByProductAndAgeGroup.print()
-      console.log(dfd.toCSV(satisfactionByProductAndAgeGroup))
-
-      // Sales by age
-      const salesByAge = df.groupby(["Age_Group"]).col(["Sales"]).sum();
-      console.log("SALES BY AGE")
-      salesByAge.print()
-      console.log(dfd.toCSV(salesByAge))
-
-      // Sales by product
-      const salesByProduct = df.groupby(["Product"]).col(["Sales"]).sum();
-      console.log("SALES BY PRODUCT")
-      salesByProduct.print()
-      console.log(dfd.toCSV(salesByProduct))
-
-      // Sales by product and age
-      const salesByProductAndAge = df.groupby(["Product","Age_Group"]).col(["Sales"]).sum();
-      console.log("SALES BY PRODUCT AND AGE")
-      salesByProductAndAge.print()
-      console.log(dfd.toCSV(salesByProductAndAge))
-
-      // Sales by product, age, and gender
-      const salesByProductGenderAndAge = df.groupby(["Product", "Customer_Gender","Age_Group"]).col(["Sales"]).sum();
-      console.log("SALES BY PRODUCT GENDER AND AGE")
-      salesByProductGenderAndAge.print()
-      console.log(dfd.toCSV(salesByProductGenderAndAge))
-
-      // Sales by Age group and gender
-      const salesByAgeGroupAndGender = df.groupby(["Age_Group","Customer_Gender"]).col(["Sales"]).sum();
-      console.log("SALES BY AGE GROUP AND GENDER")
-      salesByAgeGroupAndGender.print()
-      console.log(dfd.toCSV(salesByAgeGroupAndGender))
-
-      // Group sales by month
-      const salesByMonth = df.groupby(["MonthYear"]).col(["Sales"]).sum();
-      console.log("SALES BY MONTH")
-      salesByMonth.print()
-      console.log(dfd.toCSV(salesByMonth))
-
-      //// Avg monthly sales by product
-      // const avgMonthlySalesByProduct = df.groupby(["Product","Month"]).col(["Sales"]).mean();
-      // avgMonthlySalesByProduct.print()
-      // console.log(JSON.stringify(avgMonthlySalesByProduct.values))
-
-
-
-      // TO GET EACH PRODUCT'S AVG MONTHLY SALES
-      let avgSalesByMonth = df.groupby(["MonthYear", "Product", "Sales"]).col(["Sales"]).mean();
-      avgSalesByMonth.print()
-      // Now average again, but only by Product
-      let avgMonthlySalesByProduct = avgSalesByMonth.groupby(["Product"]).col(["Sales"]).mean();
-      console.log("AVG MONTHLY SALES BY PRODUCT")
-      avgMonthlySalesByProduct.print()
-      console.log(dfd.toCSV(avgMonthlySalesByProduct))
-
-
-
-
-      // Sales by day name
-      const salesByDayOfWeek = df.groupby(["Day"]).col(["Sales"]).sum();
-      console.log("SALES BY DAY OF WEEK")
-      salesByDayOfWeek.print()
-      console.log(dfd.toCSV(salesByDayOfWeek))
-
-      // sales by day of week and product
-      const salesByDayOfWeekAndProduct = df.groupby(["Day","Product"]).col(["Sales"]).sum();
-      console.log("SALES BY DAY OF WEEK AND PRODUCT")
-      salesByDayOfWeekAndProduct.print();
-      console.log(dfd.toCSV(salesByDayOfWeekAndProduct))
-
-
-      // ---- PRINT RESULTS LOCALLY ---- //
       console.log("\nData Description:\n")
       //df.describe().print() // note that describe() only summarizes numeric columns
       
@@ -277,107 +173,174 @@
       console.log(JSON.stringify(dataDescription, null, 2))
 
 
-      
-      
-      
+      //--------Create data frames with groupings----------//      
 
-      /*
-      console.log("\nSales by Region:\n");
-      salesByRegion.print(); // Note that print() only prints the first 10 rows
-      
-      console.log("\nSales by Region and Product:\n");
-      salesByRegionAndProduct.print(); 
-
-      console.log("\nAverage Satisfaction by Product:\n");
-      satisfactionByProduct.print();
-
-      console.log("\nSales by Product and Gender:\n");
-      //console.log(JSON.stringify(salesByProductAndGender.values));
-      salesByProductAndGender.print();
-      
-      console.log("\nAverage Satisfaction by Product and Gender:\n");
-      satisfactionByProductAndGender.print();
-
-      console.log("\nAverage Satisfaction by Product and Age Group:\n");
-      satisfactionByProductAndAgeGroup.print()
-
-
-      
-      // By default print() just shows 10 rows, here's how you can get it to show all rows:
-      
-      //     df.print({ maxRows: df.shape[0] });
-      
-      // Note that df.shape[0] = number of rows in your DataFrame.
-      // Passing it as maxRows tells Danfo to display that many rows.
-      
-      console.log("\nSales by date:")
-      salesByDate.print({ maxRows: salesByDate.shape[0] }); // SHOULD show all rows
-
-      console.log("\nSales by age:")
-      salesByAge.print();
-
-      console.log("\nSales by Product:\n");
-      salesByProduct.print();
-
-      console.log("\nSales by Product and Age:\n");
-      salesByProductAndAge.print();
-      
-      console.log("\nSales by Product, Gender, and Age:\n");
-      salesByProductGenderAndAge.print();
-
-      console.log("\nSales by MonthYear:\n");
-      salesByMonth.print();
-
-      console.log("\nSales by Age Group and Gender:\n");
-      salesByAgeGroupAndGender.print();
-
-      console.log("\nSales by Day of Week:\n");
-      salesByDayOfWeek.print();
-
-      console.log("\nSales by Day of Week and Product:\n");
-      salesByDayOfWeekAndProduct.print();
-     */
-
-      const processedData = {
-        dataDescription: dataDescription,
-        regionalSales: salesByRegion.values,
-        productSalesByRegion: salesByRegionAndProduct.values,
-        productSatisfaction: satisfactionByProduct.values,
-        salesByProductAndGender: salesByProductAndGender.values,
-        satisfactionByProductAndGender: satisfactionByProductAndGender.values,
-        satisfactionByProductAndAgeGroup: satisfactionByProductAndAgeGroup.values,
-        //salesByDate: salesByDate.values,
-        salesByAge: salesByAge.values,
-        salesByProduct: salesByProduct.values,
-        salesByProductAndAge: salesByProductAndAge.values,
-        salesByProductGenderAndAge: salesByProductGenderAndAge.values,
-        salesByMonth: salesByMonth.values,
-        salesByAgeGroupAndGender: salesByAgeGroupAndGender.values,
-        salesByDayOfWeek: salesByDayOfWeek.values,
-        salesByDayOfWeekAndProduct: salesByDayOfWeekAndProduct.values
-      };
-      console.log(JSON.stringify(processedData))
-
-
-      // ---- CREATE THE CHARTS ----
+      // Sales by region
+      const salesByRegion = df.groupby(["Region"]).col(["Sales"]).sum();
+      console.log("SALES BY REGION")
+      salesByRegion.print();
+      console.log(dfd.toCSV(salesByRegion))
       createRegionalSalesChart(salesByRegion.values);
+      postCSVData.salesByRegion = dfd.toCSV(salesByRegion)
+
+      // Sales by region and product
+      const salesByRegionAndProduct = df.groupby(["Region", "Product"]).col(["Sales"]).sum();
+      console.log("SALES BY REGION AND PRODUCT")
+      salesByRegionAndProduct.print();
+      console.log(dfd.toCSV(salesByRegionAndProduct))
       createSalesByRegionAndProductChart(salesByRegionAndProduct.values)
-      createProductSatisfactionChart(satisfactionByProduct.values);
-      createProductSatisfactionByGenderChart(satisfactionByProductAndGender.values)
-      createProductSatisfactionByAgeGroupChart(satisfactionByProductAndAgeGroup.values)
+      postCSVData.salesByRegionAndProduct = dfd.toCSV(salesByRegionAndProduct)
+      
+      // Sales by product and gender
+      const salesByProductAndGender = df.groupby(["Product", "Customer_Gender"]).col(["Sales"]).sum();
+      console.log("SALES BY PRODUCT AND GENDER")
+      salesByProductAndGender.print();
+      console.log(dfd.toCSV(salesByProductAndGender))
       createSalesByProductandGenderChart(salesByProductAndGender.values);
-      createSalesByProductChart(salesByProduct.values)
-      // TODO:
-      // createSalesByDateChart()?????????????????
+      postCSVData.salesByProductAndGender = dfd.toCSV(salesByProductAndGender)
+
+      // Sales (total) by date:
+      const salesByDate = df.groupby(["Date"]).col(["Sales"]).sum();
+      console.log("SALES BY DATE")
+      salesByDate.print()
+      console.log(dfd.toCSV(salesByDate))
+      postCSVData.salesByDate = dfd.toCSV(salesByDate)
+
+      // Avg customer satisfaction by product
+      const satisfactionByProduct = df.groupby(["Product"]).col(["Customer_Satisfaction"]).mean();
+      console.log("AVG SATISFACTION BY PRODUCT")
+      satisfactionByProduct.print()
+      console.log(dfd.toCSV(satisfactionByProduct))
+      createProductSatisfactionChart(satisfactionByProduct.values);
+      postCSVData.satisfactionByProduct = dfd.toCSV(satisfactionByProduct)
+
+       // Avg customer satisfaction by product and gender
+      const satisfactionByProductAndGender = df.groupby(["Product", "Customer_Gender"]).col(["Customer_Satisfaction"]).mean();
+      console.log("AVG SATISFATION BY PRODUCT AND GENDER")
+      satisfactionByProductAndGender.print()
+      console.log(dfd.toCSV(satisfactionByProductAndGender))
+      createProductSatisfactionByGenderChart(satisfactionByProductAndGender.values)
+      postCSVData.satisfactionByProductAndGender = dfd.toCSV(satisfactionByProductAndGender)
+
+      // Avg customer satisfaction by product and gender
+      const satisfactionByProductAndAgeGroup = df.groupby(["Product", "Age_Group"]).col(["Customer_Satisfaction"]).mean();
+      console.log("AVG SATISFACTION BY PRODUCT AND AGE")
+      satisfactionByProductAndAgeGroup.print()
+      console.log(dfd.toCSV(satisfactionByProductAndAgeGroup))
+      createProductSatisfactionByAgeGroupChart(satisfactionByProductAndAgeGroup.values)
+      postCSVData.satisfactionByProductAndAgeGroup = dfd.toCSV(satisfactionByProductAndAgeGroup)
+
+      // Sales by age
+      const salesByAge = df.groupby(["Age_Group"]).col(["Sales"]).sum();
+      console.log("SALES BY AGE")
+      salesByAge.print()
+      console.log(dfd.toCSV(salesByAge))
       createSalesByAgeChart(salesByAge.values)
+      postCSVData.salesByAge = dfd.toCSV(salesByAge)
+
+      // Sales by product
+      const salesByProduct = df.groupby(["Product"]).col(["Sales"]).sum();
+      console.log("SALES BY PRODUCT")
+      salesByProduct.print()
+      console.log(dfd.toCSV(salesByProduct))
+      createSalesByProductChart(salesByProduct.values)
+      postCSVData.salesByProduct = dfd.toCSV(salesByProduct)
+
+      // Sales by product and age
+      const salesByProductAndAge = df.groupby(["Product","Age_Group"]).col(["Sales"]).sum();
+      console.log("SALES BY PRODUCT AND AGE")
+      salesByProductAndAge.print()
+      console.log(dfd.toCSV(salesByProductAndAge))
       createSalesByProductAndAgeChart(salesByProductAndAge.values)
-      //createSalesByProductGenderAndAgeChart(salesByProductGenderAndAge.values)
-      createSalesByMonthChart(salesByMonth.values)
+      postCSVData.salesByProductAndAge = dfd.toCSV(salesByProductAndAge)
+
+      // Sales by product, age, and gender
+      const salesByProductGenderAndAge = df.groupby(["Product", "Customer_Gender","Age_Group"]).col(["Sales"]).sum();
+      console.log("SALES BY PRODUCT GENDER AND AGE")
+      salesByProductGenderAndAge.print()
+      console.log(dfd.toCSV(salesByProductGenderAndAge))
+      createSalesByProductGenderAndAgeChart(salesByProductGenderAndAge.values)
+      postCSVData.salesByProductGenderAndAge = dfd.toCSV(salesByProductGenderAndAge)
+
+
+      // Satisfaction by product, age, and gender
+      const satisfactionByProductGenderAndAge = df.groupby(["Product", "Customer_Gender","Age_Group"]).col(["Customer_Satisfaction"]).mean();
+      console.log("AVG SATISFACTION BY PRODUCT GENDER AND AGE")
+      satisfactionByProductGenderAndAge.print()
+      console.log(dfd.toCSV(satisfactionByProductGenderAndAge))
+      createSatisfactionByProductGenderAndAgeChart(satisfactionByProductGenderAndAge.values)
+      postCSVData.satisfactionByProductGenderAndAge = dfd.toCSV(satisfactionByProductGenderAndAge)
+
+
+      // Sales by Age group and gender
+      const salesByAgeGroupAndGender = df.groupby(["Age_Group","Customer_Gender"]).col(["Sales"]).sum();
+      console.log("SALES BY AGE GROUP AND GENDER")
+      salesByAgeGroupAndGender.print()
+      console.log(dfd.toCSV(salesByAgeGroupAndGender))
       createSalesByAgeGroupAndGenderChart(salesByAgeGroupAndGender.values)
+      postCSVData.salesByAgeGroupAndGender = dfd.toCSV(salesByAgeGroupAndGender)
+
+      // Group sales by month
+      const salesByMonthAndYear = df.groupby(["MonthYear"]).col(["Sales"]).sum();
+      console.log("SALES BY MONTH")
+      salesByMonthAndYear.print()
+      console.log(dfd.toCSV(salesByMonthAndYear))
+      createSalesByMonthChart(salesByMonthAndYear.values)
+      postCSVData.salesByMonthAndYear = dfd.toCSV(salesByMonthAndYear)
+
+      //// Avg monthly sales by product
+      // const avgMonthlySalesByProduct = df.groupby(["Product","Month"]).col(["Sales"]).mean();
+      // avgMonthlySalesByProduct.print()
+      // console.log(JSON.stringify(avgMonthlySalesByProduct.values))
+
+
+
+      // TO GET EACH PRODUCT'S AVG MONTHLY SALES
+      let avgSalesByMonth = df.groupby(["MonthYear", "Product", "Sales"]).col(["Sales"]).mean();
+      avgSalesByMonth.print()
+      // Now average again, but only by Product
+      let avgMonthlySalesByProduct = avgSalesByMonth.groupby(["Product"]).col(["Sales"]).mean();
+      console.log("AVG MONTHLY SALES BY PRODUCT")
+      avgMonthlySalesByProduct.print()
+      console.log(dfd.toCSV(avgMonthlySalesByProduct))
+      postCSVData.avgMonthlySalesByProduct = dfd.toCSV(avgMonthlySalesByProduct)
+      
+
+
+
+      // Sales by day name
+      const salesByDayOfWeek = df.groupby(["Day"]).col(["Sales"]).sum();
+      console.log("SALES BY DAY OF WEEK")
+      salesByDayOfWeek.print()
+      console.log(dfd.toCSV(salesByDayOfWeek))
       createSalesByDayOfWeekChart(salesByDayOfWeek.values)
+      postCSVData.salesByDayOfWeek = dfd.toCSV(salesByDayOfWeek)
+
+      // sales by day of week and product
+      const salesByDayOfWeekAndProduct = df.groupby(["Day","Product"]).col(["Sales"]).sum();
+      console.log("SALES BY DAY OF WEEK AND PRODUCT")
+      salesByDayOfWeekAndProduct.print();
+      console.log(dfd.toCSV(salesByDayOfWeekAndProduct))
       createSalesByDayOfWeekAndProductChart(salesByDayOfWeekAndProduct.values)
+      postCSVData.salesByDayOfWeekAndProduct = dfd.toCSV(salesByDayOfWeekAndProduct)
+
+      // sales by month name
+      const salesByMonthName = df.groupby(["Month_Name"]).col(["Sales"]).sum();
+      console.log("SALES BY MONTH NAME")
+      salesByMonthName.print();
+      createSalesByMonthNameChart(salesByMonthName.values);
+
+      // sales by product and month name
+      const salesByProductAndMonthName = df.groupby(["Product","Month_Name"]).col(["Sales"]).sum();
+      console.log("SALES BY PRODUCT AND MONTH NAME")
+      salesByProductAndMonthName.print();
+      createAvgSalesByProductAndMonthNameChart(salesByProductAndMonthName.values);
+      createAvgSalesByMonthNameAndProductChart(salesByProductAndMonthName.values);
+      postCSVData.salesByProductAndMonthName = dfd.toCSV(salesByProductAndMonthName)
 
 
+      console.log("CSV DATA TO POST")
+      console.log(postCSVData)
 
     }// end processCSVData
   
@@ -400,7 +363,7 @@
     }
 
     const createSalesByRegionAndProductChart = (data) => {
-      console.log(data)
+      //console.log(data)
       
       /* The data needs to look like this
       [
@@ -498,9 +461,9 @@
       /*
       Here's what the data needs to look like
       [
-        ["Product", "<25", "26-35", "36-50", "51-65", "65+"],
-        ["Widget A", 1000, 1000, 1000, 1000, 1000]
-        ["Widget B", 1000, 1000, 1000, 1000, 1000]
+        ["Product", "<25", "26-35", "36-45","46-55", "56-65", "65+"],
+        ["Widget A", 1000, 1000, 1000, 1000, 1000, 1000]
+        ["Widget B", 1000, 1000, 1000, 1000, 1000, 1000]
       ]
       */
 
@@ -513,14 +476,15 @@
         productMap[product][ageGroup] = satisfaction;
       });
       //console.log(productMap)
-      const ar = [["Product", "<25", "26-35", "36-50", "51-65", "65+"]]
+      const ar = [["Product", "<25", "26-35", "36-45","46-55", "56-65", "65+"]]
       for(prop in productMap){
         ar.push([
           prop, 
           productMap[prop]["<25"], 
           productMap[prop]["26-35"],
-          productMap[prop]["36-50"],
-          productMap[prop]["51-65"],
+          productMap[prop]["36-45"],
+          productMap[prop]["46-55"],
+          productMap[prop]["56-65"],
           productMap[prop]["65+"],
         ])
       }
@@ -604,11 +568,11 @@
       /*
       // This is how the data needs to be formatted:
       const dataTable = google.visualization.arrayToDataTable([
-        ["Product", "<25", "26-35", "36-50","51-65","65+"],
-        ["Widget A", 5000, 10000, 4000, 8000, 7000],
-        ["Widget B", 5000, 10000, 4000, 8000, 7000],
-        ["Widget C", 5000, 10000, 4000, 8000, 7000],
-        ["Widget D", 5000, 10000, 4000, 8000, 7000]
+        ["Product", "<25", "26-35", "36-45","46-55","56-65","65+"],
+        ["Widget A", 5000, 10000, 4000, 8000, 7000, 5000],
+        ["Widget B", 5000, 10000, 4000, 8000, 7000, 5000],
+        ["Widget C", 5000, 10000, 4000, 8000, 7000, 5000],
+        ["Widget D", 5000, 10000, 4000, 8000, 7000, 5000]
       ],
       false); // 'false' means that the first row contains labels, not data.
       */
@@ -625,9 +589,9 @@
 
       //console.log(productMap)
 
-      const ar = [["Product", "<25", "26-35", "36-50","51-65","65+"]]
+      const ar = [["Product", "<25", "26-35", "36-45","46-55","56-65","65+"]]
       for(prop in productMap){
-        ar.push([prop, productMap[prop]["<25"], productMap[prop]["26-35"], productMap[prop]["36-50"], productMap[prop]["51-65"], productMap[prop]["65+"]])
+        ar.push([prop, productMap[prop]["<25"], productMap[prop]["26-35"], productMap[prop]["36-45"],productMap[prop]["46-55"], productMap[prop]["56-65"], productMap[prop]["65+"]])
       }
 
       //console.log(JSON.stringify(ar));
@@ -647,43 +611,124 @@
 
 
     const createSalesByProductGenderAndAgeChart = (data) => {
-      //console.log(JSON.stringify(data))
+      
+      console.log(JSON.stringify(data))
+      /*
+      // Here's what the data looks like:
+      [["Widget C","Male","26-35",34423],["Widget C","Female","46-55",35722],["Widget C","Female","26-35",38831],["Widget C","Male","36-45",27800],["Widget C","Male","56-65",32732],["Widget C","Female","<25",23605],["Widget C","Female","36-45",32898],["Widget C","Female","65+",10563],["Widget C","Female","56-65",26280],["Widget C","Male","46-55",27288],["Widget C","Male","<25",31612],["Widget C","Male","65+",13315],["Widget D","Male","26-35",39246],["Widget D","Female","26-35",38060],["Widget D","Female","56-65",39848],["Widget D","Female","36-45",27366],["Widget D","Male","46-55",25037],["Widget D","Male","36-45",32275],["Widget D","Male","56-65",35181],["Widget D","Female","46-55",26860],["Widget D","Female","<25",23218],["Widget D","Male","65+",10675],["Widget D","Male","<25",20043],["Widget D","Female","65+",9045],["Widget A","Female","36-45",42392],["Widget A","Male","65+",14903],["Widget A","Male","56-65",33288],["Widget A","Female","65+",12646],["Widget A","Male","26-35",39907],["Widget A","Male","46-55",29105],["Widget A","Male","36-45",42473],["Widget A","Female","<25",27699],["Widget A","Female","56-65",38750],["Widget A","Male","<25",26214],["Widget A","Female","46-55",33600],["Widget A","Female","26-35",34258],["Widget B","Male","36-45",38093],["Widget B","Female","46-55",32416],["Widget B","Male","56-65",28023],["Widget B","Male","26-35",27036],["Widget B","Female","26-35",32764],["Widget B","Female","56-65",33703],["Widget B","Male","46-55",33757],["Widget B","Male","65+",11775],["Widget B","Female","36-45",31023],["Widget B","Male","<25",26968],["Widget B","Female","<25",30671],["Widget B","Female","65+",19833]]
+      */
             
       /*
       // This is how the data needs to be formatted:
       const dataTable = google.visualization.arrayToDataTable([
-        ["Product", "Gender", "<25", "26-35", "36-50","51-65","65+"],
-        ["Widget A","Male", 5000, 10000, 4000, 8000, 7000],
-        ["Widget A","Female", 5000, 10000, 4000, 8000, 7000],
-        ["Widget B", "Male", 5000, 10000, 4000, 8000, 7000],
-        ["Widget B", "Female", 5000, 10000, 4000, 8000, 7000],
-        ["Widget C", "Male", 5000, 10000, 4000, 8000, 7000],
-        ["Widget C", "Female", 5000, 10000, 4000, 8000, 7000],
-        ["Widget D", "Male",5000, 10000, 4000, 8000, 7000],
+        ["Product", "Gender", "<25", "26-35", "36-45","46-55","56-65","65+"],
+        ["Widget A","Male", 5000, 10000, 4000, 8000, 7000, 1000],
+        ["Widget A","Female", 5000, 10000, 4000, 8000, 7000, 1000],
+        ["Widget B", "Male", 5000, 10000, 4000, 8000, 7000, 1000],
+        ["Widget B", "Female", 5000, 10000, 4000, 8000, 7000, 1000],
+        ["Widget C", "Male", 5000, 10000, 4000, 8000, 7000, 1000],
+        ["Widget C", "Female", 5000, 10000, 4000, 8000, 7000, 1000],
+        ["Widget D", "Male",5000, 10000, 4000, 8000, 7000, 1000],
         ["Widget D", "Female",5000, 10000, 4000, 8000, 7000]
       ],
       false); // 'false' means that the first row contains labels, not data.
       */
 
+      const productMap = {}
+      data.forEach(([product, gender,ageGroup, sales]) => {
+        
+        // don't need this, thans to destruction the param to the callback
+        // const product = row[0]
+        // const gender = row[1]
+        // const ageGroup = row[2]
+        // const sales = row[3]
+
+        if(!productMap[product]){
+          productMap[product] = {}
+        }
+        if(!productMap[product][gender]){
+          productMap[product][gender] = {}
+        }
+        productMap[product][gender][ageGroup] = sales
+        
+      })
+
+      //console.log("/////////////////////////////////////////")
+      //console.log(productMap)
+
+      /*
       const dataTable = google.visualization.arrayToDataTable([
         // The first column is the label (Product)
         // Subsequent columns are the series, combining Gender and Age.
-        ["Product", "Male <25", "Female <25", "Male 26-35", "Female 26-35", "Male 36-50", "Female 36-50", "Male 51-65", "Female 51-65", "Male 65+", "Female 65+"],
-        ["Widget A", 5000, 5000, 10000, 10000, 4000, 4000, 8000, 8000, 7000, 7000],
-        ["Widget B", 5000, 5000, 10000, 10000, 4000, 4000, 8000, 8000, 7000, 7000],
-        ["Widget C", 5000, 5000, 10000, 10000, 4000, 4000, 8000, 8000, 7000, 7000],
-        ["Widget D", 5000, 5000, 10000, 10000, 4000, 4000, 8000, 8000, 7000, 7000]
+        ["Product", "Male <25", "Female <25", "Male 26-35", "Female 26-35", "Male 36-45", "Female 36-45", "Male 46-55", "Female 46-55","Male 56-65", "Female 56-65", "Male 65+", "Female 65+"],
+        ["Widget A", 5000, 5000, 10000, 10000, 4000, 4000, 8000, 8000, 7000, 7000, 5000, 4000],
+        ["Widget B", 5000, 5000, 10000, 10000, 4000, 4000, 8000, 8000, 7000, 7000, 5000, 4000],
+        ["Widget C", 5000, 5000, 10000, 10000, 4000, 4000, 8000, 8000, 7000, 7000, 5000, 4000],
+        ["Widget D", 5000, 5000, 10000, 10000, 4000, 4000, 8000, 8000, 7000, 7000, 5000, 4000]
+      ],
+      false);
+      */
+
+
+      const dataTable = google.visualization.arrayToDataTable([
+        // The first column is the label (Product)
+        // Subsequent columns are the series, combining Gender and Age.
+        ["Product", "Male <25", "Female <25", "Male 26-35", "Female 26-35", "Male 36-45", "Female 36-45", "Male 46-55", "Female 46-55","Male 56-65", "Female 56-65", "Male 65+", "Female 65+"],
+        ["Widget A", productMap["Widget A"]["Male"]["<25"], productMap["Widget A"]["Female"]["<25"], productMap["Widget A"]["Male"]["26-35"], productMap["Widget A"]["Female"]["26-35"], productMap["Widget A"]["Male"]["36-45"], productMap["Widget A"]["Female"]["36-45"], productMap["Widget A"]["Male"]["46-55"], productMap["Widget A"]["Female"]["46-55"], productMap["Widget A"]["Male"]["56-65"], productMap["Widget A"]["Female"]["56-65"], productMap["Widget A"]["Male"]["65+"], productMap["Widget A"]["Female"]["65+"]],
+        ["Widget B", productMap["Widget B"]["Male"]["<25"], productMap["Widget B"]["Female"]["<25"], productMap["Widget B"]["Male"]["26-35"], productMap["Widget B"]["Female"]["26-35"], productMap["Widget B"]["Male"]["36-45"], productMap["Widget B"]["Female"]["36-45"], productMap["Widget B"]["Male"]["46-55"], productMap["Widget B"]["Female"]["46-55"], productMap["Widget B"]["Male"]["56-65"], productMap["Widget B"]["Female"]["56-65"], productMap["Widget B"]["Male"]["65+"], productMap["Widget B"]["Female"]["65+"]],
+        ["Widget C", productMap["Widget C"]["Male"]["<25"], productMap["Widget C"]["Female"]["<25"], productMap["Widget C"]["Male"]["26-35"], productMap["Widget C"]["Female"]["26-35"], productMap["Widget C"]["Male"]["36-45"], productMap["Widget C"]["Female"]["36-45"], productMap["Widget C"]["Male"]["46-55"], productMap["Widget C"]["Female"]["46-55"], productMap["Widget C"]["Male"]["56-65"], productMap["Widget C"]["Female"]["56-65"], productMap["Widget C"]["Male"]["65+"], productMap["Widget C"]["Female"]["65+"]],
+        ["Widget D", productMap["Widget D"]["Male"]["<25"], productMap["Widget D"]["Female"]["<25"], productMap["Widget D"]["Male"]["26-35"], productMap["Widget D"]["Female"]["26-35"], productMap["Widget D"]["Male"]["36-45"], productMap["Widget D"]["Female"]["36-45"], productMap["Widget D"]["Male"]["46-55"], productMap["Widget D"]["Female"]["46-55"], productMap["Widget D"]["Male"]["56-65"], productMap["Widget D"]["Female"]["56-65"], productMap["Widget D"]["Male"]["65+"], productMap["Widget D"]["Female"]["65+"]]
       ],
       false);
 
-
-
       const options = {
 				title: "Sales by Product, Gender, and Age Group",
-        isStacked: true
+        isStacked: false
 			};
 
 			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByProductGenderAndAgeGroup"));
+			chart.draw(dataTable, options)
+    }
+
+    const createSatisfactionByProductGenderAndAgeChart = (data) => {
+      
+      // THIS CHART IS JUST LIKE THE ONE FROM createSalesByProductGenderAndAgeChart (just replace 'sales' with 'satisfaction') SO I'LL LEAVE OUT THE COMMENTS
+
+      const productMap = {}
+      data.forEach(row => {
+        
+        const product = row[0]
+        const gender = row[1]
+        const ageGroup = row[2]
+        const satisfaction = row[3]
+
+        if(!productMap[row[0]]){
+          productMap[product] = {}
+        }
+        if(!productMap[product][gender]){
+          productMap[product][gender] = {}
+        }
+        productMap[product][gender][ageGroup] = satisfaction
+        
+      })
+      
+      const dataTable = google.visualization.arrayToDataTable([
+        // The first column is the label (Product)
+        // Subsequent columns are the series, combining Gender and Age.
+        ["Product", "Male <25", "Female <25", "Male 26-35", "Female 26-35", "Male 36-45", "Female 36-45", "Male 46-55", "Female 46-55","Male 56-65", "Female 56-65", "Male 65+", "Female 65+"],
+        ["Widget A", productMap["Widget A"]["Male"]["<25"], productMap["Widget A"]["Female"]["<25"], productMap["Widget A"]["Male"]["26-35"], productMap["Widget A"]["Female"]["26-35"], productMap["Widget A"]["Male"]["36-45"], productMap["Widget A"]["Female"]["36-45"], productMap["Widget A"]["Male"]["46-55"], productMap["Widget A"]["Female"]["46-55"], productMap["Widget A"]["Male"]["56-65"], productMap["Widget A"]["Female"]["56-65"], productMap["Widget A"]["Male"]["65+"], productMap["Widget A"]["Female"]["65+"]],
+        ["Widget B", productMap["Widget B"]["Male"]["<25"], productMap["Widget B"]["Female"]["<25"], productMap["Widget B"]["Male"]["26-35"], productMap["Widget B"]["Female"]["26-35"], productMap["Widget B"]["Male"]["36-45"], productMap["Widget B"]["Female"]["36-45"], productMap["Widget B"]["Male"]["46-55"], productMap["Widget B"]["Female"]["46-55"], productMap["Widget B"]["Male"]["56-65"], productMap["Widget B"]["Female"]["56-65"], productMap["Widget B"]["Male"]["65+"], productMap["Widget B"]["Female"]["65+"]],
+        ["Widget C", productMap["Widget C"]["Male"]["<25"], productMap["Widget C"]["Female"]["<25"], productMap["Widget C"]["Male"]["26-35"], productMap["Widget C"]["Female"]["26-35"], productMap["Widget C"]["Male"]["36-45"], productMap["Widget C"]["Female"]["36-45"], productMap["Widget C"]["Male"]["46-55"], productMap["Widget C"]["Female"]["46-55"], productMap["Widget C"]["Male"]["56-65"], productMap["Widget C"]["Female"]["56-65"], productMap["Widget C"]["Male"]["65+"], productMap["Widget C"]["Female"]["65+"]],
+        ["Widget D", productMap["Widget D"]["Male"]["<25"], productMap["Widget D"]["Female"]["<25"], productMap["Widget D"]["Male"]["26-35"], productMap["Widget D"]["Female"]["26-35"], productMap["Widget D"]["Male"]["36-45"], productMap["Widget D"]["Female"]["36-45"], productMap["Widget D"]["Male"]["46-55"], productMap["Widget D"]["Female"]["46-55"], productMap["Widget D"]["Male"]["56-65"], productMap["Widget D"]["Female"]["56-65"], productMap["Widget D"]["Male"]["65+"], productMap["Widget D"]["Female"]["65+"]]
+      ],
+      false);
+
+      const options = {
+				title: "Average Satisfaction by Product, Gender, and Age Group",
+        isStacked: false
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#satisfactionByProductGenderAndAgeGroup"));
 			chart.draw(dataTable, options)
     }
 
@@ -698,7 +743,7 @@
 				title: "Monthly Sales"
 			};
 
-			const chart = new google.visualization.LineChart(document.querySelector("#salesByMonth"));
+			const chart = new google.visualization.LineChart(document.querySelector("#salesByMonthAndYear"));
 			chart.draw(dataTable, options)
     }
 
@@ -727,8 +772,9 @@
         ["Age Group", "Male", "Female"],
         [">25", 5000, 10000],
         ["26-35", 5000, 10000],
-        ["36-50", 5000, 10000],
-        ["51-65", 5000, 10000],
+        ["36-45", 5000, 10000],
+        ["46-55", 5000, 10000],
+        ["56-65", 5000, 10000],
         ["65+", 5000, 10000]
       ],
       false); // 'false' means that the first row contains labels, not data.
@@ -752,8 +798,9 @@
       // }
       ar.push(["<25", ageGroupMap["<25"]["Male"], ageGroupMap["<25"]["Female"] ])
       ar.push(["26-35", ageGroupMap["26-35"]["Male"], ageGroupMap["26-35"]["Female"] ])
-      ar.push(["36-50", ageGroupMap["36-50"]["Male"], ageGroupMap["36-50"]["Female"] ])
-      ar.push(["51-65", ageGroupMap["51-65"]["Male"], ageGroupMap["51-65"]["Female"] ])
+      ar.push(["36-45", ageGroupMap["36-45"]["Male"], ageGroupMap["36-45"]["Female"] ])
+      ar.push(["46-55", ageGroupMap["46-55"]["Male"], ageGroupMap["46-55"]["Female"] ])
+      ar.push(["56-65", ageGroupMap["56-65"]["Male"], ageGroupMap["56-65"]["Female"] ])
       ar.push(["65+", ageGroupMap["65+"]["Male"], ageGroupMap["65+"]["Female"] ])
 
       //console.log(ar);
@@ -822,6 +869,124 @@
 			const chart = new google.visualization.LineChart(document.querySelector("#salesByDayAndProduct"));
 			chart.draw(dataTable, options)
       
+    }
+
+    const createSalesByMonthNameChart = (data) => {
+      
+
+      const ar = [
+        ["Month", "Sales"],
+        ...data
+      ]
+
+      const dataTable = google.visualization.arrayToDataTable(ar, false); 
+      // 'false' means that the first row contains labels, not data.
+
+      const options = {
+				title: "Sales by Month Name",
+        //isStacked: true
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByMonthName"));
+			chart.draw(dataTable, options)
+    }
+
+    
+    const createAvgSalesByProductAndMonthNameChart = (data) => {
+
+      // THIS IS THE SAME DATA AS USED BY createAvgSalesByMonthNameAndProductChart(),
+      // BUT IT PUTS THE PRODUCT ON THE X AXIS RATHER THAN THE MONTH
+      
+      //console.log(data);
+
+      /*
+      [
+        ["Product", "Jan", "Feb", ...],
+        ["Widget A", 500, 500, ...]
+      ]
+      */
+
+      const productMap = {}
+      data.forEach(([product, monthName, sales]) => {
+        if(!productMap[product]){
+          productMap[product] = {}
+        }
+        productMap[product][monthName] = sales;       
+      })
+      // console.log(productMap)
+
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+      const ar = [
+        ["Product", ...monthNames]
+      ]
+
+      for(productName in productMap){
+        ar.push([productName, ...monthNames.map(mn => productMap[productName][mn])])
+      }
+      //console.log(ar);
+
+      const dataTable = google.visualization.arrayToDataTable(ar, false); 
+      // 'false' means that the first row contains labels, not data.
+
+      const options = {
+				title: "Sales by Product and Month Name",
+        //isStacked: true
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByProductAndMonthName"));
+			chart.draw(dataTable, options)
+        
+
+    }
+
+    const createAvgSalesByMonthNameAndProductChart = (data) => {
+
+      // THIS IS THE SAME DATA AS USED BY createAvgSalesByProductAndMonthNameChart(),
+      // BUT IT PUTS THE MONTH ON THE X AXIS RATHER THAN THE PRODUCT
+      
+      //console.log(data);
+
+      /*
+      [
+        ["Month", "Widget A", "Widget B", ...],
+        ["Jan", 500, 500, ...]
+      ]
+      */
+
+      const monthMap = {}
+      const productNames = []
+      data.forEach(([product, monthName, sales]) => {
+        productNames.push(product)
+        if(!monthMap[monthName]){
+          monthMap[monthName] = {}
+        }
+        monthMap[monthName][product] = sales;       
+      })
+      console.log(monthMap)
+
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+      const uniqueProductNames = [...new Set(productNames)]
+      
+      //console.log(uniqueProductNames)
+      const ar = [
+        ["Month", ...uniqueProductNames],
+        ...monthNames.map(mn => [mn, ...uniqueProductNames.map(pn => monthMap[mn][pn])])
+      ]
+     
+      //console.log(ar);
+
+      const dataTable = google.visualization.arrayToDataTable(ar, false); 
+      // 'false' means that the first row contains labels, not data.
+
+      const options = {
+				title: "Sales by Month Name and Product",
+        //isStacked: true
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByMonthNameAndProduct"));
+			chart.draw(dataTable, options)
+        
+
     }
 
   })
