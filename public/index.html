@@ -4,32 +4,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="main.css" />
+    <script src="main.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/danfojs@1.2.0/lib/bundle.min.js"></script>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-	  <title>AI Business Analyts</title>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> -->
+	  <title>Document</title>
 </head>
 
 <body>
-<input type="file" id="file" name="file">
-<input type="button" id="btnTest" value="TEST LLM">
-<div id="regionalSales"></div>
-
+<header>
+  <h1>AI Capstone Project</h1>
+</header>
+<main>
+  <input type="file" id="file" name="file">
+  <div id="regionalSales"></div>
+  <div id="salesByRegionAndProduct"></div>
+  <div id="productSatisfaction"></div>
+  <div id="productSatisfactionByGender"></div>
+  <div id="productSatisfactionByAgeGroup"></div>
+  <div id="salesByProductAndGender"></div>
+  <div id="productSales"></div>
+  <div id="salesByProductAndAgeGroup"></div>
+  <div id="salesByProductGenderAndAgeGroup"></div>
+  <div id="satisfactionByProductGenderAndAgeGroup"></div>
+  <div id="salesByMonthAndYear"></div>
+  <div id="salesByAgeGroup"></div>
+  <div id="salesByAgeGroupAndGender"></div>
+  <div id="salesByDayOfWeek"></div>
+  <div id="salesByDayAndProduct"></div>
+  <div id="salesByMonthName"></div>
+  <div id="salesByProductAndMonthName"></div>
+  <div id="salesByMonthNameAndProduct"></div>
+</main>
+<footer>
+  &copy;2025 Niall Kader 
+</footer>
 
 <script type="text/javascript">
+
 	google.charts.load('current', {'packages':['corechart']});
 	google.charts.setOnLoadCallback(() => {
-
-    // NOTE: that I tried to send the entire raw data from the .csv file to the LLM
-    // but it exceeded chat gpt's token limits
-
-    let context = ""
-    
-    const testBtn = document.querySelector("#btnTest");
-    testBtn.addEventListener("click", async () => {
-      const result = await axios.post("/api/test", {context})
-      console.log(result);
-    })
     
     const inputFile = document.querySelector("#file");     
     
@@ -37,14 +52,19 @@
       const csvFile = inputFile.files[0]
       dfd.readCSV(csvFile).then((df) => {
         //df.print()
+        //MYPROCESSDATA(df.values, df.$columns)
         processCSVData(df)
       })
     })
 
+    // this object will get posted to the server to feed to the agents
+    postCSVData = {}
+
     const processCSVData = (df) => {
 
-      console.log("\nDescribe the dataframe:\n");
-      df.describe().print() // note that describe() only summarizes numeric columns
+      //console.log("\nDescribe the dataframe:\n");
+      //df.describe().print() // note that describe() only summarizes numeric columns
+      //console.log(df.describe())
 
       // Get values from date column and convert each string into a date obj
       // We'll use this dates array to add columns to our data frame
@@ -57,13 +77,14 @@
 
       
       // Add a column for Age Groups, use the Customer_Age column to do it
-      // Age groups are <25, 26-35,36-50,51-65, and 65+
+      // Age groups are <25, 26-35,36-45,46-55,56-65,and 65+
       let ages = df["Customer_Age"].values;
       let ageGroups = ages.map(age => {
         if (age <= 25) return "<25";
         if (age <= 35) return "26-35";
-        if (age <= 50) return "36-50";
-        if (age <= 65) return "51-65";
+        if (age <= 45) return "36-45";
+        if (age <= 55) return "46-55";
+        if (age <= 65) return "56-65";
         return "65+";
       });
 
@@ -74,7 +95,7 @@
       // Add Month/Year column like  "Aug 2022" so that we can aggregate monthly sales
       //let months = dates.map(d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
       let months = dates.map(d => `${getMonthName(d.getMonth())} ${d.getFullYear()}`);
-      df.addColumn("Month", months, { inplace: true });
+      df.addColumn("MonthYear", months, { inplace: true });
       
       // helper function to get month name from 
       function getMonthName(monthNumber){
@@ -82,7 +103,13 @@
         return months[monthNumber];
       }
 
-      // Add column that shows day of week of sale
+
+      let monthNames = months.map(m => m.slice(0,3));
+      df.addColumn("Month_Name", monthNames, {inplace:true})
+      //df.print();
+
+
+      // add column that shows day of week of sale
       let dayNames = dates.map(d => getDayName(d))
       df.addColumn("Day", dayNames, { inplace: true });
       // helper function to get day name from a Date obj
@@ -92,27 +119,223 @@
       }
 
 
+      console.log("\nData Description:\n")
+      //df.describe().print() // note that describe() only summarizes numeric columns
+      
+      // I had to do some wrangling to get df.describe().print() into a format that I can feed to the LLMs!!!
+      const dfObj = df.describe()
+      const columns = [...dfObj.$columns]
+      const indexes = [...dfObj.$index]
+      const rows = [...dfObj.$data];
+      indexes.forEach((indexName, i) => rows[i].unshift(indexName))
+      rows.unshift(["Metric", ...columns]);
+      //console.log(JSON.stringify(rows));
+      const dataDescription = rows;
+      console.log("DATA DESCRIPTION")
+      console.log(JSON.stringify(dataDescription, null, 2))
+
+
       //--------Create data frames with groupings----------//      
 
+      /*
       // Sales by region
       const salesByRegion = df.groupby(["Region"]).col(["Sales"]).sum();
-      salesByRegion.print()
+      console.log("SALES BY REGION")
+      salesByRegion.print();
+      console.log(dfd.toCSV(salesByRegion))
+      createRegionalSalesChart(salesByRegion.values);
+      postCSVData.salesByRegion = dfd.toCSV(salesByRegion)
+      */
 
       
+      // Sales by region and product
+      const salesByRegionAndProduct = df.groupby(["Region", "Product"]).col(["Sales"]).sum();
+      console.log("SALES BY REGION AND PRODUCT")
+      salesByRegionAndProduct.print();
+      console.log(dfd.toCSV(salesByRegionAndProduct))
+      createSalesByRegionAndProductChart(salesByRegionAndProduct.values)
+      postCSVData.salesByRegionAndProduct = dfd.toCSV(salesByRegionAndProduct)
+      
+
+      /*
+      // Sales by product and gender
+      const salesByProductAndGender = df.groupby(["Product", "Customer_Gender"]).col(["Sales"]).sum();
+      console.log("SALES BY PRODUCT AND GENDER")
+      salesByProductAndGender.print();
+      console.log(dfd.toCSV(salesByProductAndGender))
+      createSalesByProductandGenderChart(salesByProductAndGender.values);
+      postCSVData.salesByProductAndGender = dfd.toCSV(salesByProductAndGender)
+      */
+
+      /*
+      // Sales (total) by date:
+      const salesByDate = df.groupby(["Date"]).col(["Sales"]).sum();
+      console.log("SALES BY DATE")
+      salesByDate.print()
+      console.log(dfd.toCSV(salesByDate))
+      postCSVData.salesByDate = dfd.toCSV(salesByDate)
+      */ 
+
+      /*
+      // Avg customer satisfaction by product
+      const satisfactionByProduct = df.groupby(["Product"]).col(["Customer_Satisfaction"]).mean();
+      console.log("AVG SATISFACTION BY PRODUCT")
+      satisfactionByProduct.print()
+      console.log(dfd.toCSV(satisfactionByProduct))
+      createProductSatisfactionChart(satisfactionByProduct.values);
+      postCSVData.satisfactionByProduct = dfd.toCSV(satisfactionByProduct)
+      */
+
+      /*
+       // Avg customer satisfaction by product and gender
+      const satisfactionByProductAndGender = df.groupby(["Product", "Customer_Gender"]).col(["Customer_Satisfaction"]).mean();
+      console.log("AVG SATISFATION BY PRODUCT AND GENDER")
+      satisfactionByProductAndGender.print()
+      console.log(dfd.toCSV(satisfactionByProductAndGender))
+      createProductSatisfactionByGenderChart(satisfactionByProductAndGender.values)
+      postCSVData.satisfactionByProductAndGender = dfd.toCSV(satisfactionByProductAndGender)
+      */
+
+      /*
+      // Avg customer satisfaction by product and gender
+      const satisfactionByProductAndAgeGroup = df.groupby(["Product", "Age_Group"]).col(["Customer_Satisfaction"]).mean();
+      console.log("AVG SATISFACTION BY PRODUCT AND AGE")
+      satisfactionByProductAndAgeGroup.print()
+      console.log(dfd.toCSV(satisfactionByProductAndAgeGroup))
+      createProductSatisfactionByAgeGroupChart(satisfactionByProductAndAgeGroup.values)
+      postCSVData.satisfactionByProductAndAgeGroup = dfd.toCSV(satisfactionByProductAndAgeGroup)
+      */
+
+      /*
+      // Sales by age
+      const salesByAge = df.groupby(["Age_Group"]).col(["Sales"]).sum();
+      console.log("SALES BY AGE")
+      salesByAge.print()
+      console.log(dfd.toCSV(salesByAge))
+      createSalesByAgeChart(salesByAge.values)
+      postCSVData.salesByAge = dfd.toCSV(salesByAge)
+      */
+
+      /*
+      // Sales by product
+      const salesByProduct = df.groupby(["Product"]).col(["Sales"]).sum();
+      console.log("SALES BY PRODUCT")
+      salesByProduct.print()
+      console.log(dfd.toCSV(salesByProduct))
+      createSalesByProductChart(salesByProduct.values)
+      postCSVData.salesByProduct = dfd.toCSV(salesByProduct)
+      */ 
+
+      /*
+      // Sales by product and age
+      const salesByProductAndAge = df.groupby(["Product","Age_Group"]).col(["Sales"]).sum();
+      console.log("SALES BY PRODUCT AND AGE")
+      salesByProductAndAge.print()
+      console.log(dfd.toCSV(salesByProductAndAge))
+      createSalesByProductAndAgeChart(salesByProductAndAge.values)
+      postCSVData.salesByProductAndAge = dfd.toCSV(salesByProductAndAge)
+      */ 
 
 
-      // ---- FORMAT RESULTS FOR LLM ----
-      context += `
-      Regional Sales: ${JSON.stringify(salesByRegion.values)}
+      // Sales by product, age, and gender
+      const salesByProductGenderAndAge = df.groupby(["Product", "Customer_Gender","Age_Group"]).col(["Sales"]).sum();
+      console.log("SALES BY PRODUCT GENDER AND AGE")
+      salesByProductGenderAndAge.print()
+      console.log(dfd.toCSV(salesByProductGenderAndAge))
+      createSalesByProductGenderAndAgeChart(salesByProductGenderAndAge.values)
+      postCSVData.salesByProductGenderAndAge = dfd.toCSV(salesByProductGenderAndAge)
 
-      `;
 
-      // ---- CREATE THE CHARTS ----
-      createRegionalSalesChart(salesByRegion.values);
+      // Satisfaction by product, age, and gender
+      const satisfactionByProductGenderAndAge = df.groupby(["Product", "Customer_Gender","Age_Group"]).col(["Customer_Satisfaction"]).mean();
+      console.log("AVG SATISFACTION BY PRODUCT GENDER AND AGE")
+      satisfactionByProductGenderAndAge.print()
+      console.log(dfd.toCSV(satisfactionByProductGenderAndAge))
+      createSatisfactionByProductGenderAndAgeChart(satisfactionByProductGenderAndAge.values)
+      postCSVData.satisfactionByProductGenderAndAge = dfd.toCSV(satisfactionByProductGenderAndAge)
+
+
+      /*
+      // Sales by Age group and gender
+      const salesByAgeGroupAndGender = df.groupby(["Age_Group","Customer_Gender"]).col(["Sales"]).sum();
+      console.log("SALES BY AGE GROUP AND GENDER")
+      salesByAgeGroupAndGender.print()
+      console.log(dfd.toCSV(salesByAgeGroupAndGender))
+      createSalesByAgeGroupAndGenderChart(salesByAgeGroupAndGender.values)
+      postCSVData.salesByAgeGroupAndGender = dfd.toCSV(salesByAgeGroupAndGender)
+      */
+
+      /*
+      // Group sales by month
+      const salesByMonthAndYear = df.groupby(["MonthYear"]).col(["Sales"]).mean();
+      console.log("AVG SALES BY MONTH")
+      salesByMonthAndYear.print()
+      console.log(dfd.toCSV(salesByMonthAndYear))
+      createSalesByMonthChart(salesByMonthAndYear.values)
+      postCSVData.salesByMonthAndYear = dfd.toCSV(salesByMonthAndYear)
+      */
+
+      //// Avg monthly sales by product
+      // const avgMonthlySalesByProduct = df.groupby(["Product","Month"]).col(["Sales"]).mean();
+      // avgMonthlySalesByProduct.print()
+      // console.log(JSON.stringify(avgMonthlySalesByProduct.values))
+
+
+
+      /*
+      // TO GET EACH PRODUCT'S AVG MONTHLY SALES
+      let avgSalesByMonth = df.groupby(["MonthYear", "Product", "Sales"]).col(["Sales"]).mean();
+      avgSalesByMonth.print()
+      // Now average again, but only by Product
+      let avgMonthlySalesByProduct = avgSalesByMonth.groupby(["Product"]).col(["Sales"]).mean();
+      console.log("AVG MONTHLY SALES BY PRODUCT")
+      avgMonthlySalesByProduct.print()
+      console.log(dfd.toCSV(avgMonthlySalesByProduct))
+      postCSVData.avgMonthlySalesByProduct = dfd.toCSV(avgMonthlySalesByProduct)
+      */
+
+
+      /*
+      // Sales by day name
+      const salesByDayOfWeek = df.groupby(["Day"]).col(["Sales"]).sum();
+      console.log("SALES BY DAY OF WEEK")
+      salesByDayOfWeek.print()
+      console.log(dfd.toCSV(salesByDayOfWeek))
+      createSalesByDayOfWeekChart(salesByDayOfWeek.values)
+      postCSVData.salesByDayOfWeek = dfd.toCSV(salesByDayOfWeek)
+      */
+
+      // sales by day of week and product
+      const salesByDayOfWeekAndProduct = df.groupby(["Day","Product"]).col(["Sales"]).sum();
+      console.log("SALES BY DAY OF WEEK AND PRODUCT")
+      salesByDayOfWeekAndProduct.print();
+      console.log(dfd.toCSV(salesByDayOfWeekAndProduct))
+      createSalesByDayOfWeekAndProductChart(salesByDayOfWeekAndProduct.values)
+      postCSVData.salesByDayOfWeekAndProduct = dfd.toCSV(salesByDayOfWeekAndProduct)
+
+      /*
+      // sales by month name
+      const avgSalesByMonthName = df.groupby(["Month_Name"]).col(["Sales"]).mean();
+      console.log("SALES BY MONTH NAME")
+      avgSalesByMonthName.print();
+      createSalesByMonthNameChart(avgSalesByMonthName.values);
+      postCSVData.avgSalesByMonthName = dfd.toCSV(avgSalesByMonthName)
+      */
+
+      // sales by product and month name
+      const avgSalesByProductAndMonthName = df.groupby(["Product","Month_Name"]).col(["Sales"]).mean();
+      console.log("AVERAGE SALES BY PRODUCT AND MONTH NAME")
+      avgSalesByProductAndMonthName.print();
+      createAvgSalesByProductAndMonthNameChart(avgSalesByProductAndMonthName.values);
+      createAvgSalesByMonthNameAndProductChart(avgSalesByProductAndMonthName.values);
+      postCSVData.avgSalesByProductAndMonthName = dfd.toCSV(avgSalesByProductAndMonthName)
+
+
+      console.log("CSV DATA TO POST")
+      console.log(postCSVData)
 
     }// end processCSVData
-
-    
+  
 
     const createRegionalSalesChart = (data) => {
 
@@ -122,17 +345,645 @@
       ],
       false); // 'false' means that the first row contains labels, not data.
 
-      const options = {
-        title: "Sales By Region"
-      };
+			const options = {
+				title: "Sales By Region"
+			};
 
-      const chart = new google.visualization.ColumnChart(document.querySelector("#regionalSales"));
-      chart.draw(dataTable, options)
+			const chart = new google.visualization.ColumnChart(document.querySelector("#regionalSales"));
+			chart.draw(dataTable, options)
+
+    }
+
+    const createSalesByRegionAndProductChart = (data) => {
+      //console.log(data)
+      
+      /* The data needs to look like this
+      [
+        ["Region", "Widget A", "Widget B"]
+        ["North", 111, 111],
+        ["East", 111, 111],
+        ["South", 111, 111],
+        ["West", 111, 111]
+      ]
+      */
+
+      const products = data.map(d => d[1])
+      const uniqueProducts = [...new Set(products)];
+
+      const regionMap = {}
+      data.forEach(([region, product, sales]) => {
+        if(!regionMap[region]){
+          regionMap[region] = {}
+        }
+        regionMap[region][product] = sales
+      })
+
+      //console.log(regionMap)
+
+      const ar = [["Region", ...uniqueProducts]]
+      for(prop in regionMap){
+        ar.push([prop, ...uniqueProducts.map(productName => regionMap[prop][productName])])
+      }
+      //console.log(ar)
+
+      const dataTable = google.visualization.arrayToDataTable(ar, false); // 'false' means that the first row contains labels, not data.
+
+			const options = {
+				title: "Sales by Region and Product"
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByRegionAndProduct"));
+			chart.draw(dataTable, options)
+
+    }
+
+    const createProductSatisfactionChart = (data) => {
+
+      const dataTable = google.visualization.arrayToDataTable([
+        ["Product", "Satisfaction"],
+        ...data
+      ],
+      false); // 'false' means that the first row contains labels, not data.
+
+			const options = {
+				title: "Product Satisfaction"
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#productSatisfaction"));
+			chart.draw(dataTable, options)
+
+    }
+
+    const createProductSatisfactionByGenderChart = (data) => {
+
+      /*
+      Here's what the data needs to look like
+      [
+        ["Product", "Male", "Female"],
+        ["Widget A", 1000, 1000]
+        ["Widget B", 1000, 1000]
+      ]
+      */
+
+      //console.log(data)
+      const productMap = {}
+      data.forEach(([product, gender, satisfaction]) => {
+        if (!productMap[product]) {
+          productMap[product] = {};
+        }
+        productMap[product][gender] = satisfaction;
+      });
+      //console.log(productMap)
+      const ar = [["Product", "Male", "Female"]]
+      for(prop in productMap){
+        ar.push([prop, productMap[prop]["Male"], productMap[prop]["Female"]])
+      }
+
+      const dataTable = google.visualization.arrayToDataTable(ar, false); // 'false' means that the first row contains labels, not data.
+
+			const options = {
+				title: "Product Satisfaction by Gender"
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#productSatisfactionByGender"));
+			chart.draw(dataTable, options)
+    }
+
+    const createProductSatisfactionByAgeGroupChart = (data) => {
+      /*
+      Here's what the data needs to look like
+      [
+        ["Product", "<25", "26-35", "36-45","46-55", "56-65", "65+"],
+        ["Widget A", 1000, 1000, 1000, 1000, 1000, 1000]
+        ["Widget B", 1000, 1000, 1000, 1000, 1000, 1000]
+      ]
+      */
+
+      //console.log(data)
+      const productMap = {}
+      data.forEach(([product, ageGroup, satisfaction]) => {
+        if (!productMap[product]) {
+          productMap[product] = {};
+        }
+        productMap[product][ageGroup] = satisfaction;
+      });
+      //console.log(productMap)
+      const ar = [["Product", "<25", "26-35", "36-45","46-55", "56-65", "65+"]]
+      for(prop in productMap){
+        ar.push([
+          prop, 
+          productMap[prop]["<25"], 
+          productMap[prop]["26-35"],
+          productMap[prop]["36-45"],
+          productMap[prop]["46-55"],
+          productMap[prop]["56-65"],
+          productMap[prop]["65+"],
+        ])
+      }
+
+      const dataTable = google.visualization.arrayToDataTable(ar, false); 
+      // 'false' means that the first row contains labels, not data.
+
+			const options = {
+				title: "Product Satisfaction by Age Group"
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#productSatisfactionByAgeGroup"));
+			chart.draw(dataTable, options)
+    }
+
+    const createSalesByProductandGenderChart = (data) => {
+
+      /*
+      console.log(JSON.stringify(data))
+
+      // This is how the data needs to be formatted:
+      const dataTable = google.visualization.arrayToDataTable([
+        ["Product", "Male", "Female"],
+        ["Widget A", 5000, 10000],
+        ["Widget B", 5000, 10000],
+        ["Widget C", 5000, 10000],
+        ["Widget D", 5000, 10000]
+      ],
+      false); // 'false' means that the first row contains labels, not data.
+      */
+
+      const productMap = {}
+
+      data.forEach(([product, gender, sales]) => {
+        if (!productMap[product]) {
+          productMap[product] = {};
+        }
+        productMap[product][gender] = sales;
+      });
+
+      //console.log(productMap)
+
+      const ar = [["Product", "Male", "Female"]]
+      for(prop in productMap){
+        ar.push([prop, productMap[prop]["Male"], productMap[prop]["Female"]])
+      }
+
+      //console.log(ar);
+      
+      const dataTable = google.visualization.arrayToDataTable(ar, false); 
+      // 'false' means that the first row contains labels, not data.
+
+      const options = {
+				title: "Product Sales by Gender"
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByProductAndGender"));
+			chart.draw(dataTable, options)
+
+    }
+
+    const createSalesByProductChart = (data) => {
+      const dataTable = google.visualization.arrayToDataTable([
+        ["Product", "Sales"],
+        ...data
+      ],
+      false); // 'false' means that the first row contains labels, not data.
+
+			const options = {
+				title: "Product Sales"
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#productSales"));
+			chart.draw(dataTable, options)
+    }
+
+    const createSalesByProductAndAgeChart = (data) => {
+      
+      //console.log(JSON.stringify(data))
+      
+      /*
+      // This is how the data needs to be formatted:
+      const dataTable = google.visualization.arrayToDataTable([
+        ["Product", "<25", "26-35", "36-45","46-55","56-65","65+"],
+        ["Widget A", 5000, 10000, 4000, 8000, 7000, 5000],
+        ["Widget B", 5000, 10000, 4000, 8000, 7000, 5000],
+        ["Widget C", 5000, 10000, 4000, 8000, 7000, 5000],
+        ["Widget D", 5000, 10000, 4000, 8000, 7000, 5000]
+      ],
+      false); // 'false' means that the first row contains labels, not data.
+      */
+
+      
+      const productMap = {}
+
+      data.forEach(([product, ageGroup, sales]) => {
+        if (!productMap[product]) {
+          productMap[product] = {};
+        }
+        productMap[product][ageGroup] = sales;
+      });
+
+      //console.log(productMap)
+
+      const ar = [["Product", "<25", "26-35", "36-45","46-55","56-65","65+"]]
+      for(prop in productMap){
+        ar.push([prop, productMap[prop]["<25"], productMap[prop]["26-35"], productMap[prop]["36-45"],productMap[prop]["46-55"], productMap[prop]["56-65"], productMap[prop]["65+"]])
+      }
+
+      //console.log(JSON.stringify(ar));
+      
+      const dataTable = google.visualization.arrayToDataTable(ar, false); 
+      // 'false' means that the first row contains labels, not data.
+
+      const options = {
+				title: "Sales by Product and Age Group",
+        isStacked: false //true
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByProductAndAgeGroup"));
+			chart.draw(dataTable, options)
+      
+    }
+
+
+    const createSalesByProductGenderAndAgeChart = (data) => {
+      
+      console.log(JSON.stringify(data))
+      /*
+      // Here's what the data looks like:
+      [["Widget C","Male","26-35",34423],["Widget C","Female","46-55",35722],["Widget C","Female","26-35",38831],["Widget C","Male","36-45",27800],["Widget C","Male","56-65",32732],["Widget C","Female","<25",23605],["Widget C","Female","36-45",32898],["Widget C","Female","65+",10563],["Widget C","Female","56-65",26280],["Widget C","Male","46-55",27288],["Widget C","Male","<25",31612],["Widget C","Male","65+",13315],["Widget D","Male","26-35",39246],["Widget D","Female","26-35",38060],["Widget D","Female","56-65",39848],["Widget D","Female","36-45",27366],["Widget D","Male","46-55",25037],["Widget D","Male","36-45",32275],["Widget D","Male","56-65",35181],["Widget D","Female","46-55",26860],["Widget D","Female","<25",23218],["Widget D","Male","65+",10675],["Widget D","Male","<25",20043],["Widget D","Female","65+",9045],["Widget A","Female","36-45",42392],["Widget A","Male","65+",14903],["Widget A","Male","56-65",33288],["Widget A","Female","65+",12646],["Widget A","Male","26-35",39907],["Widget A","Male","46-55",29105],["Widget A","Male","36-45",42473],["Widget A","Female","<25",27699],["Widget A","Female","56-65",38750],["Widget A","Male","<25",26214],["Widget A","Female","46-55",33600],["Widget A","Female","26-35",34258],["Widget B","Male","36-45",38093],["Widget B","Female","46-55",32416],["Widget B","Male","56-65",28023],["Widget B","Male","26-35",27036],["Widget B","Female","26-35",32764],["Widget B","Female","56-65",33703],["Widget B","Male","46-55",33757],["Widget B","Male","65+",11775],["Widget B","Female","36-45",31023],["Widget B","Male","<25",26968],["Widget B","Female","<25",30671],["Widget B","Female","65+",19833]]
+      */
+            
+      /*
+      // This is how the data needs to be formatted:
+      const dataTable = google.visualization.arrayToDataTable([
+        ["Product", "Gender", "<25", "26-35", "36-45","46-55","56-65","65+"],
+        ["Widget A","Male", 5000, 10000, 4000, 8000, 7000, 1000],
+        ["Widget A","Female", 5000, 10000, 4000, 8000, 7000, 1000],
+        ["Widget B", "Male", 5000, 10000, 4000, 8000, 7000, 1000],
+        ["Widget B", "Female", 5000, 10000, 4000, 8000, 7000, 1000],
+        ["Widget C", "Male", 5000, 10000, 4000, 8000, 7000, 1000],
+        ["Widget C", "Female", 5000, 10000, 4000, 8000, 7000, 1000],
+        ["Widget D", "Male",5000, 10000, 4000, 8000, 7000, 1000],
+        ["Widget D", "Female",5000, 10000, 4000, 8000, 7000]
+      ],
+      false); // 'false' means that the first row contains labels, not data.
+      */
+
+      const productMap = {}
+      data.forEach(([product, gender,ageGroup, sales]) => {
+        
+        // don't need this, thans to destruction the param to the callback
+        // const product = row[0]
+        // const gender = row[1]
+        // const ageGroup = row[2]
+        // const sales = row[3]
+
+        if(!productMap[product]){
+          productMap[product] = {}
+        }
+        if(!productMap[product][gender]){
+          productMap[product][gender] = {}
+        }
+        productMap[product][gender][ageGroup] = sales
+        
+      })
+
+      //console.log("/////////////////////////////////////////")
+      //console.log(productMap)
+
+      /*
+      const dataTable = google.visualization.arrayToDataTable([
+        // The first column is the label (Product)
+        // Subsequent columns are the series, combining Gender and Age.
+        ["Product", "Male <25", "Female <25", "Male 26-35", "Female 26-35", "Male 36-45", "Female 36-45", "Male 46-55", "Female 46-55","Male 56-65", "Female 56-65", "Male 65+", "Female 65+"],
+        ["Widget A", 5000, 5000, 10000, 10000, 4000, 4000, 8000, 8000, 7000, 7000, 5000, 4000],
+        ["Widget B", 5000, 5000, 10000, 10000, 4000, 4000, 8000, 8000, 7000, 7000, 5000, 4000],
+        ["Widget C", 5000, 5000, 10000, 10000, 4000, 4000, 8000, 8000, 7000, 7000, 5000, 4000],
+        ["Widget D", 5000, 5000, 10000, 10000, 4000, 4000, 8000, 8000, 7000, 7000, 5000, 4000]
+      ],
+      false);
+      */
+
+
+      const dataTable = google.visualization.arrayToDataTable([
+        // The first column is the label (Product)
+        // Subsequent columns are the series, combining Gender and Age.
+        ["Product", "Male <25", "Female <25", "Male 26-35", "Female 26-35", "Male 36-45", "Female 36-45", "Male 46-55", "Female 46-55","Male 56-65", "Female 56-65", "Male 65+", "Female 65+"],
+        ["Widget A", productMap["Widget A"]["Male"]["<25"], productMap["Widget A"]["Female"]["<25"], productMap["Widget A"]["Male"]["26-35"], productMap["Widget A"]["Female"]["26-35"], productMap["Widget A"]["Male"]["36-45"], productMap["Widget A"]["Female"]["36-45"], productMap["Widget A"]["Male"]["46-55"], productMap["Widget A"]["Female"]["46-55"], productMap["Widget A"]["Male"]["56-65"], productMap["Widget A"]["Female"]["56-65"], productMap["Widget A"]["Male"]["65+"], productMap["Widget A"]["Female"]["65+"]],
+        ["Widget B", productMap["Widget B"]["Male"]["<25"], productMap["Widget B"]["Female"]["<25"], productMap["Widget B"]["Male"]["26-35"], productMap["Widget B"]["Female"]["26-35"], productMap["Widget B"]["Male"]["36-45"], productMap["Widget B"]["Female"]["36-45"], productMap["Widget B"]["Male"]["46-55"], productMap["Widget B"]["Female"]["46-55"], productMap["Widget B"]["Male"]["56-65"], productMap["Widget B"]["Female"]["56-65"], productMap["Widget B"]["Male"]["65+"], productMap["Widget B"]["Female"]["65+"]],
+        ["Widget C", productMap["Widget C"]["Male"]["<25"], productMap["Widget C"]["Female"]["<25"], productMap["Widget C"]["Male"]["26-35"], productMap["Widget C"]["Female"]["26-35"], productMap["Widget C"]["Male"]["36-45"], productMap["Widget C"]["Female"]["36-45"], productMap["Widget C"]["Male"]["46-55"], productMap["Widget C"]["Female"]["46-55"], productMap["Widget C"]["Male"]["56-65"], productMap["Widget C"]["Female"]["56-65"], productMap["Widget C"]["Male"]["65+"], productMap["Widget C"]["Female"]["65+"]],
+        ["Widget D", productMap["Widget D"]["Male"]["<25"], productMap["Widget D"]["Female"]["<25"], productMap["Widget D"]["Male"]["26-35"], productMap["Widget D"]["Female"]["26-35"], productMap["Widget D"]["Male"]["36-45"], productMap["Widget D"]["Female"]["36-45"], productMap["Widget D"]["Male"]["46-55"], productMap["Widget D"]["Female"]["46-55"], productMap["Widget D"]["Male"]["56-65"], productMap["Widget D"]["Female"]["56-65"], productMap["Widget D"]["Male"]["65+"], productMap["Widget D"]["Female"]["65+"]]
+      ],
+      false);
+
+      const options = {
+				title: "Sales by Product, Gender, and Age Group",
+        isStacked: false
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByProductGenderAndAgeGroup"));
+			chart.draw(dataTable, options)
+    }
+
+    const createSatisfactionByProductGenderAndAgeChart = (data) => {
+      
+      // THIS CHART IS JUST LIKE THE ONE FROM createSalesByProductGenderAndAgeChart (just replace 'sales' with 'satisfaction') SO I'LL LEAVE OUT THE COMMENTS
+
+      const productMap = {}
+      data.forEach(row => {
+        
+        const product = row[0]
+        const gender = row[1]
+        const ageGroup = row[2]
+        const satisfaction = row[3]
+
+        if(!productMap[row[0]]){
+          productMap[product] = {}
+        }
+        if(!productMap[product][gender]){
+          productMap[product][gender] = {}
+        }
+        productMap[product][gender][ageGroup] = satisfaction
+        
+      })
+      
+      const dataTable = google.visualization.arrayToDataTable([
+        // The first column is the label (Product)
+        // Subsequent columns are the series, combining Gender and Age.
+        ["Product", "Male <25", "Female <25", "Male 26-35", "Female 26-35", "Male 36-45", "Female 36-45", "Male 46-55", "Female 46-55","Male 56-65", "Female 56-65", "Male 65+", "Female 65+"],
+        ["Widget A", productMap["Widget A"]["Male"]["<25"], productMap["Widget A"]["Female"]["<25"], productMap["Widget A"]["Male"]["26-35"], productMap["Widget A"]["Female"]["26-35"], productMap["Widget A"]["Male"]["36-45"], productMap["Widget A"]["Female"]["36-45"], productMap["Widget A"]["Male"]["46-55"], productMap["Widget A"]["Female"]["46-55"], productMap["Widget A"]["Male"]["56-65"], productMap["Widget A"]["Female"]["56-65"], productMap["Widget A"]["Male"]["65+"], productMap["Widget A"]["Female"]["65+"]],
+        ["Widget B", productMap["Widget B"]["Male"]["<25"], productMap["Widget B"]["Female"]["<25"], productMap["Widget B"]["Male"]["26-35"], productMap["Widget B"]["Female"]["26-35"], productMap["Widget B"]["Male"]["36-45"], productMap["Widget B"]["Female"]["36-45"], productMap["Widget B"]["Male"]["46-55"], productMap["Widget B"]["Female"]["46-55"], productMap["Widget B"]["Male"]["56-65"], productMap["Widget B"]["Female"]["56-65"], productMap["Widget B"]["Male"]["65+"], productMap["Widget B"]["Female"]["65+"]],
+        ["Widget C", productMap["Widget C"]["Male"]["<25"], productMap["Widget C"]["Female"]["<25"], productMap["Widget C"]["Male"]["26-35"], productMap["Widget C"]["Female"]["26-35"], productMap["Widget C"]["Male"]["36-45"], productMap["Widget C"]["Female"]["36-45"], productMap["Widget C"]["Male"]["46-55"], productMap["Widget C"]["Female"]["46-55"], productMap["Widget C"]["Male"]["56-65"], productMap["Widget C"]["Female"]["56-65"], productMap["Widget C"]["Male"]["65+"], productMap["Widget C"]["Female"]["65+"]],
+        ["Widget D", productMap["Widget D"]["Male"]["<25"], productMap["Widget D"]["Female"]["<25"], productMap["Widget D"]["Male"]["26-35"], productMap["Widget D"]["Female"]["26-35"], productMap["Widget D"]["Male"]["36-45"], productMap["Widget D"]["Female"]["36-45"], productMap["Widget D"]["Male"]["46-55"], productMap["Widget D"]["Female"]["46-55"], productMap["Widget D"]["Male"]["56-65"], productMap["Widget D"]["Female"]["56-65"], productMap["Widget D"]["Male"]["65+"], productMap["Widget D"]["Female"]["65+"]]
+      ],
+      false);
+
+      const options = {
+				title: "Average Satisfaction by Product, Gender, and Age Group",
+        isStacked: false
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#satisfactionByProductGenderAndAgeGroup"));
+			chart.draw(dataTable, options)
+    }
+
+    const createSalesByMonthChart = (data) => {
+      const dataTable = google.visualization.arrayToDataTable([
+        ["Month", "Sales"],
+        ...data
+      ],
+      false); // 'false' means that the first row contains labels, not data.
+
+			const options = {
+				title: "Monthly Sales"
+			};
+
+			const chart = new google.visualization.LineChart(document.querySelector("#salesByMonthAndYear"));
+			chart.draw(dataTable, options)
+    }
+
+
+    const createSalesByAgeChart = (data) => {
+      const dataTable = google.visualization.arrayToDataTable([
+        ["Age Group", "Sales"],
+        ...data
+      ],
+      false); // 'false' means that the first row contains labels, not data.
+
+			const options = {
+				title: "Sales by Age Group"
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByAgeGroup"));
+			chart.draw(dataTable, options)
+    }
+
+    const createSalesByAgeGroupAndGenderChart = (data) => {
+      
+      //console.log(JSON.stringify(data))
+      /*
+      // This is how the data needs to be formatted:
+      const dataTable = google.visualization.arrayToDataTable([
+        ["Age Group", "Male", "Female"],
+        [">25", 5000, 10000],
+        ["26-35", 5000, 10000],
+        ["36-45", 5000, 10000],
+        ["46-55", 5000, 10000],
+        ["56-65", 5000, 10000],
+        ["65+", 5000, 10000]
+      ],
+      false); // 'false' means that the first row contains labels, not data.
+      */
+
+      
+      const ageGroupMap = {}
+
+      data.forEach(([ageGroup, gender, sales]) => {
+        if (!ageGroupMap[ageGroup]) {
+          ageGroupMap[ageGroup] = {};
+        }
+        ageGroupMap[ageGroup][gender] = sales;
+      });
+
+      //console.log(ageGroupMap)
+
+      const ar = [["Age Group", "Male", "Female"]]
+      // for(prop in ageGroupMap){
+      //   ar.push([prop, ageGroupMap[prop]["Male"], ageGroupMap[prop]["Female"]])
+      // }
+      ar.push(["<25", ageGroupMap["<25"]["Male"], ageGroupMap["<25"]["Female"] ])
+      ar.push(["26-35", ageGroupMap["26-35"]["Male"], ageGroupMap["26-35"]["Female"] ])
+      ar.push(["36-45", ageGroupMap["36-45"]["Male"], ageGroupMap["36-45"]["Female"] ])
+      ar.push(["46-55", ageGroupMap["46-55"]["Male"], ageGroupMap["46-55"]["Female"] ])
+      ar.push(["56-65", ageGroupMap["56-65"]["Male"], ageGroupMap["56-65"]["Female"] ])
+      ar.push(["65+", ageGroupMap["65+"]["Male"], ageGroupMap["65+"]["Female"] ])
+
+      //console.log(ar);
+      
+      const dataTable = google.visualization.arrayToDataTable(ar, false); 
+      // 'false' means that the first row contains labels, not data.
+
+      const options = {
+				title: "Sales by Age Group and Gender"
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByAgeGroupAndGender"));
+			chart.draw(dataTable, options)
+      
+    }
+
+    const createSalesByDayOfWeekChart = (data) => {
+      const dataTable = google.visualization.arrayToDataTable([
+        ["Day of Week", "Sales"],
+        ...data
+      ],
+      false); // 'false' means that the first row contains labels, not data.
+
+			const options = {
+				title: "Sales by Day of Week"
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByDayOfWeek"));
+			chart.draw(dataTable, options)
+    }
+
+    const createSalesByDayOfWeekAndProductChart = (data) => {
+
+      const dayMap = {}
+
+      data.forEach(([day, product, sales]) => {
+        if (!dayMap[day]) {
+          dayMap[day] = {};
+        }
+        dayMap[day][product] = sales;
+      });
+
+      //console.log(dayMap)
+      
+      const ar = [["Day", "Widget A", "Widget B", "Widget C", "Widget D"]]
+      for(prop in dayMap){
+        ar.push([
+          prop, 
+          dayMap[prop]["Widget A"], 
+          dayMap[prop]["Widget B"], 
+          dayMap[prop]["Widget C"], 
+          dayMap[prop]["Widget D"]
+        ])
+      }
+
+      //console.log(ar);
+      
+      const dataTable = google.visualization.arrayToDataTable(ar, false); 
+      // 'false' means that the first row contains labels, not data.
+
+      const options = {
+				title: "Sales by Day and Product",
+        //isStacked: true
+			};
+
+			const chart = new google.visualization.LineChart(document.querySelector("#salesByDayAndProduct"));
+			chart.draw(dataTable, options)
+      
+    }
+
+    const createSalesByMonthNameChart = (data) => {
+      
+
+      const ar = [
+        ["Month", "Sales"],
+        ...data
+      ]
+
+      const dataTable = google.visualization.arrayToDataTable(ar, false); 
+      // 'false' means that the first row contains labels, not data.
+
+      const options = {
+				title: "Average Sales by Month Name",
+        //isStacked: true
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByMonthName"));
+			chart.draw(dataTable, options)
+    }
+
+    
+    const createAvgSalesByProductAndMonthNameChart = (data) => {
+
+      // THIS IS THE SAME DATA AS USED BY createAvgSalesByMonthNameAndProductChart(),
+      // BUT IT PUTS THE PRODUCT ON THE X AXIS RATHER THAN THE MONTH
+      
+      //console.log(data);
+
+      /*
+      [
+        ["Product", "Jan", "Feb", ...],
+        ["Widget A", 500, 500, ...]
+      ]
+      */
+
+      const productMap = {}
+      data.forEach(([product, monthName, sales]) => {
+        if(!productMap[product]){
+          productMap[product] = {}
+        }
+        productMap[product][monthName] = sales;       
+      })
+      // console.log(productMap)
+
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+      const ar = [
+        ["Product", ...monthNames]
+      ]
+
+      for(productName in productMap){
+        ar.push([productName, ...monthNames.map(mn => productMap[productName][mn])])
+      }
+      //console.log(ar);
+
+      const dataTable = google.visualization.arrayToDataTable(ar, false); 
+      // 'false' means that the first row contains labels, not data.
+
+      const options = {
+				title: "Average Sales by Product and Month Name",
+        //isStacked: true
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByProductAndMonthName"));
+			chart.draw(dataTable, options)
+        
+
+    }
+
+    const createAvgSalesByMonthNameAndProductChart = (data) => {
+
+      // THIS IS THE SAME DATA AS USED BY createAvgSalesByProductAndMonthNameChart(),
+      // BUT IT PUTS THE MONTH ON THE X AXIS RATHER THAN THE PRODUCT
+      
+      //console.log(data);
+
+      /*
+      [
+        ["Month", "Widget A", "Widget B", ...],
+        ["Jan", 500, 500, ...]
+      ]
+      */
+
+      const monthMap = {}
+      const productNames = []
+      data.forEach(([product, monthName, sales]) => {
+        productNames.push(product)
+        if(!monthMap[monthName]){
+          monthMap[monthName] = {}
+        }
+        monthMap[monthName][product] = sales;       
+      })
+      console.log(monthMap)
+
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+      const uniqueProductNames = [...new Set(productNames)]
+      
+      //console.log(uniqueProductNames)
+      const ar = [
+        ["Month", ...uniqueProductNames],
+        ...monthNames.map(mn => [mn, ...uniqueProductNames.map(pn => monthMap[mn][pn])])
+      ]
+     
+      //console.log(ar);
+
+      const dataTable = google.visualization.arrayToDataTable(ar, false); 
+      // 'false' means that the first row contains labels, not data.
+
+      const options = {
+				title: "Average Sales by Month Name and Product",
+        //isStacked: true
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByMonthNameAndProduct"));
+			chart.draw(dataTable, options)
+        
 
     }
 
   })
 
+      
 </script>
 </body>
 

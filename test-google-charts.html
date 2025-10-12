@@ -4,9 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <script src="https://cdn.jsdelivr.net/npm/danfojs@1.2.0/lib/bundle.min.js"></script>
-     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-	    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/danfojs@1.2.0/lib/bundle.min.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> -->
+	  <title>Document</title>
 </head>
 
 <body>
@@ -281,8 +282,8 @@
       postCSVData.salesByAgeGroupAndGender = dfd.toCSV(salesByAgeGroupAndGender)
 
       // Group sales by month
-      const salesByMonthAndYear = df.groupby(["MonthYear"]).col(["Sales"]).sum();
-      console.log("SALES BY MONTH")
+      const salesByMonthAndYear = df.groupby(["MonthYear"]).col(["Sales"]).mean();
+      console.log("AVG SALES BY MONTH")
       salesByMonthAndYear.print()
       console.log(dfd.toCSV(salesByMonthAndYear))
       createSalesByMonthChart(salesByMonthAndYear.values)
@@ -325,18 +326,19 @@
       postCSVData.salesByDayOfWeekAndProduct = dfd.toCSV(salesByDayOfWeekAndProduct)
 
       // sales by month name
-      const salesByMonthName = df.groupby(["Month_Name"]).col(["Sales"]).sum();
+      const avgSalesByMonthName = df.groupby(["Month_Name"]).col(["Sales"]).mean();
       console.log("SALES BY MONTH NAME")
-      salesByMonthName.print();
-      createSalesByMonthNameChart(salesByMonthName.values);
+      avgSalesByMonthName.print();
+      createSalesByMonthNameChart(avgSalesByMonthName.values);
+      postCSVData.avgSalesByMonthName = dfd.toCSV(avgSalesByMonthName)
 
       // sales by product and month name
-      const salesByProductAndMonthName = df.groupby(["Product","Month_Name"]).col(["Sales"]).sum();
-      console.log("SALES BY PRODUCT AND MONTH NAME")
-      salesByProductAndMonthName.print();
-      createAvgSalesByProductAndMonthNameChart(salesByProductAndMonthName.values);
-      createAvgSalesByMonthNameAndProductChart(salesByProductAndMonthName.values);
-      postCSVData.salesByProductAndMonthName = dfd.toCSV(salesByProductAndMonthName)
+      const avgSalesByProductAndMonthName = df.groupby(["Product","Month_Name"]).col(["Sales"]).mean();
+      console.log("AVERAGE SALES BY PRODUCT AND MONTH NAME")
+      avgSalesByProductAndMonthName.print();
+      createAvgSalesByProductAndMonthNameChart(avgSalesByProductAndMonthName.values);
+      createAvgSalesByMonthNameAndProductChart(avgSalesByProductAndMonthName.values);
+      postCSVData.avgSalesByProductAndMonthName = dfd.toCSV(avgSalesByProductAndMonthName)
 
 
       console.log("CSV DATA TO POST")
@@ -883,7 +885,7 @@
       // 'false' means that the first row contains labels, not data.
 
       const options = {
-				title: "Sales by Month Name",
+				title: "Average Sales by Month Name",
         //isStacked: true
 			};
 
@@ -929,7 +931,7 @@
       // 'false' means that the first row contains labels, not data.
 
       const options = {
-				title: "Sales by Product and Month Name",
+				title: "Average Sales by Product and Month Name",
         //isStacked: true
 			};
 
@@ -979,7 +981,7 @@
       // 'false' means that the first row contains labels, not data.
 
       const options = {
-				title: "Sales by Month Name and Product",
+				title: "Average Sales by Month Name and Product",
         //isStacked: true
 			};
 

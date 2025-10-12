@@ -1,0 +1,73 @@
+body{
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  margin:0;
+  padding:0;
+}
+
+header{
+  height: 75px;
+}
+
+main{
+  flex:1;
+  width: 80%;
+  max-width:800px;
+  padding:40px;
+}
+
+footer{
+ font-size: 0.8em;
+}
+
+header, footer{
+  background-color: black;
+  color: white;
+  padding:25px;
+}
+
+.overlay{
+  position: fixed;
+  top:0;
+  bottom: 0;
+  left:0;
+  right:0;
+  background-color: rgba(127,127,127, 0.8);
+  z-index: 200;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modalWindow{
+  width: 400px;
+  background-color: white;
+  padding: 35px;
+  border: 3px solid black;
+  z-index: 201;
+}
+
+.titleBar{
+  display: flex;
+  align-items: center;
+}
+
+.closeButton{
+  height: 44px;
+  width: 44px;
+  font-weight: bold;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.title{
+  flex:1;
+}
+
+.modalContent{
+  padding: 10px;
+  height: 100%;
+}
