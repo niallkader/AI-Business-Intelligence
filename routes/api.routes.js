@@ -34,4 +34,8 @@ router.post('/test', async (req, res) => {
   }
 });
 
+router.post("/generate-report", async(req, res) => {
+  res.json(req.body)
+})
+
 export default router;

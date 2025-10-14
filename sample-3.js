@@ -1,3 +1,12 @@
+/*
+
+This sample is a bit of a mess, and after working on it, I learned that it's better to provide CSV formatted data to
+the llm than JSON formatted data. So in the subsequent samples, I started using CSV
+
+
+*/
+
+
 import dotenv from "dotenv";
 dotenv.config();
 import { ChatOpenAI } from "@langchain/openai";

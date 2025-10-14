@@ -8,8 +8,13 @@
     <script src="main.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/danfojs@1.2.0/lib/bundle.min.js"></script>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <!-- <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script> -->
-	  <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+	  <title>AI Business Intelligence</title>
+    <style>
+      #controls{
+        display:none;
+      }
+    </style>
 </head>
 
 <body>
@@ -17,9 +22,26 @@
   <h1>AI Capstone Project</h1>
 </header>
 <main>
-  <input type="file" id="file" name="file">
+  <div id="upload">
+    <label for="file">Upload Sales Data CSV File: </label>
+    <input type="file" id="file" name="file">
+  </div>
+  <div id="analyze" style="display:none;">
+    <label for="modelSelect">Choose AI Model:</label>
+    <select id="modelSelect" name="modelSelect">
+      <option value="meta/llama3-70b-instruct">meta/llama3-70b-instruct</option>
+      <option value="openai/gpt-oss-120b">openai/gpt-oss-120b</option>
+      <option value="openai/gpt-oss-20b">openai/gpt-oss-20b</option>
+    </select>
+    <button id="btnReport">Analyze Data</button>
+  </div>
+
+  <div id="status">
+    &nbsp;
+  </div>
   <div id="regionalSales"></div>
   <div id="salesByRegionAndProduct"></div>
+  <div id="satisfactionByRegionAndProduct"></div>
   <div id="productSatisfaction"></div>
   <div id="productSatisfactionByGender"></div>
   <div id="productSatisfactionByAgeGroup"></div>
@@ -45,20 +67,42 @@
 
 	google.charts.load('current', {'packages':['corechart']});
 	google.charts.setOnLoadCallback(() => {
+
+    // this object will get posted to the server to feed to the agents
+    postCSVData = {}
     
-    const inputFile = document.querySelector("#file");     
+    const inputFile = document.querySelector("#file");  
+    const btnReport = document.querySelector("#btnReport");
+    const divStatus = document.querySelector("#status");
+    const divUpload = document.querySelector("#upload");
+    const divAnalyze = document.querySelector("#analyze");   
     
     inputFile.addEventListener("change", async () => {
       const csvFile = inputFile.files[0]
       dfd.readCSV(csvFile).then((df) => {
-        //df.print()
-        //MYPROCESSDATA(df.values, df.$columns)
-        processCSVData(df)
+        processCSVData(df);
+        divUpload.style.display = "none";
+        divAnalyze.style.display = "block";
+        //console.log(passwordEntered)
       })
     })
 
-    // this object will get posted to the server to feed to the agents
-    postCSVData = {}
+    btnReport.addEventListener("click", async () => {
+      const modelSelect = document.querySelector("#modelSelect");
+      const model = modelSelect.value;
+      console.log("Model selected: " + model)
+      divStatus.innerText = "Generating report, please wait..."
+      try{
+        const response = await axios.post("/api/generate-report", { passwordEntered, model, postCSVData });
+        console.log(response.data)
+        divStatus.innerText = "Report generated. Scroll up to see charts."
+      } catch (error) {
+        console.error("Error generating report:", error);
+        divStatus.innerText = "Error generating report. Please try again."
+      }
+    })
+
+        
 
     const processCSVData = (df) => {
 
@@ -155,7 +199,15 @@
       console.log(dfd.toCSV(salesByRegionAndProduct))
       createSalesByRegionAndProductChart(salesByRegionAndProduct.values)
       postCSVData.salesByRegionAndProduct = dfd.toCSV(salesByRegionAndProduct)
-      
+
+
+      // Satisfaction by region and product
+      const satisfactionByRegionAndProduct = df.groupby(["Region", "Product"]).col(["Customer_Satisfaction"]).mean();
+      console.log("AVG SATISFACTION BY REGION AND PRODUCT")
+      satisfactionByRegionAndProduct.print();
+      console.log(dfd.toCSV(satisfactionByRegionAndProduct))
+      createSatisfactionByRegionAndProductChart(satisfactionByRegionAndProduct.values)
+      postCSVData.satisfactionByRegionAndProduct = dfd.toCSV(satisfactionByRegionAndProduct)
 
       /*
       // Sales by product and gender
@@ -389,12 +441,42 @@
       const dataTable = google.visualization.arrayToDataTable(ar, false); // 'false' means that the first row contains labels, not data.
 
 			const options = {
-				title: "Sales by Region and Product"
+				title: "Product Sales by Region"
 			};
 
 			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByRegionAndProduct"));
 			chart.draw(dataTable, options)
 
+    }
+
+    const createSatisfactionByRegionAndProductChart = (data) => {
+      const products = data.map(d => d[1])
+      const uniqueProducts = [...new Set(products)];
+
+      const regionMap = {}
+      data.forEach(([region, product, satisfaction]) => {
+        if(!regionMap[region]){
+          regionMap[region] = {}
+        }
+        regionMap[region][product] = satisfaction
+      })
+
+      //console.log(regionMap)
+
+      const ar = [["Region", ...uniqueProducts]]
+      for(prop in regionMap){
+        ar.push([prop, ...uniqueProducts.map(productName => regionMap[prop][productName])])
+      }
+      //console.log(ar)
+
+      const dataTable = google.visualization.arrayToDataTable(ar, false); // 'false' means that the first row contains labels, not data.
+
+			const options = {
+				title: "Product Satisfaction by Region"
+			};
+
+			const chart = new google.visualization.ColumnChart(document.querySelector("#satisfactionByRegionAndProduct"));
+			chart.draw(dataTable, options)
     }
 
     const createProductSatisfactionChart = (data) => {
@@ -858,7 +940,7 @@
         //isStacked: true
 			};
 
-			const chart = new google.visualization.LineChart(document.querySelector("#salesByDayAndProduct"));
+			const chart = new google.visualization.ColumnChart(document.querySelector("#salesByDayAndProduct"));
 			chart.draw(dataTable, options)
       
     }

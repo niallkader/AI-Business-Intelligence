@@ -26,8 +26,11 @@ window.addEventListener("load", () => {
   `;
 
   const hideModal = showModal("Welcome my AI Capstone Project!", introContent);
+  const txtPassword = document.querySelector("#txtPassword");
+  txtPassword.focus();
+  
   document.querySelector("#btnProject").addEventListener("click", () => {
-    passwordEntered = document.querySelector("#txtPassword").value;
+    passwordEntered = txtPassword.value;
     hideModal();
   })
 
@@ -49,12 +52,14 @@ window.addEventListener("load", () => {
 
     function hideModal(){
       document.body.removeChild(modal);
-      closeButton.removeEventListener("click", hideModal)
+      //closeButton.removeEventListener("click", hideModal)
     }
 
+    // I removed the close button for this specific project
     //const closeButton = modal.querySelector(".closeButton");
     //closeButton.addEventListener("click", hideModal);
 
+    // return the hideModal function so that we can hide the modal (without the close button)
     return hideModal;
 
   }
