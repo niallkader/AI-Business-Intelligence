@@ -111,8 +111,8 @@ Provide a structured analysis with specific insights.`]
 const startTime = new Date();
 
 // TEST AGENT 1
-await patternRecognitionAgent(state);
-console.log("Pattern Findings:\n", state.patternFindings);
+//await patternRecognitionAgent(state);
+//console.log("Pattern Findings:\n", state.patternFindings);
 
 
 
@@ -168,8 +168,8 @@ Provide demographic insights and recommendations.`]
   
   const result = await chain.invoke({
     //patternFindings: state.patternFindings,  // I decided to remove this from the prompt template
-    salesByProductGenderAndAge: state.salesByProductGenderAndAge,
-    satisfactionByProductGenderAndAge: state.satisfactionByProductGenderAndAge
+    salesByProductGenderAndAge: state.processedData.salesByProductGenderAndAge,
+    satisfactionByProductGenderAndAge: state.processedData.satisfactionByProductGenderAndAge
   });
 
   state.demographicInsights = result;
@@ -179,12 +179,77 @@ Provide demographic insights and recommendations.`]
 
 // TEST AGENT 2
 await demographicAnalyst(state);
-console.log("Demographic Findings:\n", state.demographicInsights);
+console.log("\n\nDemographic Findings:\n", state.demographicInsights);
 
 
 
+// Agent 3: Geographic Strategy Advisor
+async function geographicAnalyst(state) {
+  console.log("\n🌍 Agent 3: Geographic Strategy Advisor - Analyzing regions...");
+  
+  /*
+  // this version of the prompt includes the pattern findings (which seem to muck things up)
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", `You are a geographic strategy advisor. Using previous findings:
+1. Explain regional performance differences
+2. Identify region-specific opportunities
+3. Recommend product mix adjustments by region
+4. Suggest geographic expansion or focus strategies
+
+Build on insights from previous agents.`],
+    ["user", `Pattern Findings:
+{patternFindings}
+
+Demographic Insights:
+{demographicInsights}
+
+Product Sales by Region:
+{salesByRegionAndProduct}
+
+Product Satisfaction by Region:
+{satisfactionByRegionAndProduct}
+
+Provide geographic strategy recommendations.`]
+  ]);
+  */
+
+  const prompt = ChatPromptTemplate.fromMessages([
+    ["system", `You are a geographic strategy advisor. Use the demographic insights, and the product sales and satisfaction data to do the following:
+1. Explain regional performance differences
+2. Identify region-specific opportunities
+3. Recommend product mix adjustments by region
+4. Suggest geographic expansion or focus strategies
+Build on insights from previous agents.`],
+    ["user", `Demographic Insights:
+{demographicInsights}
+
+Product Sales by Region:
+{salesByRegionAndProduct}
+
+Product Satisfaction by Region:
+{satisfactionByRegionAndProduct}
+
+Provide geographic strategy recommendations.`]
+  ]);
+
+  const chain = prompt.pipe(model).pipe(new StringOutputParser());
+  
+  const result = await chain.invoke({
+    //patternFindings: state.patternFindings, // I removed this
+    demographicInsights: state.demographicInsights,
+    salesByRegionAndProduct: state.processedData.salesByRegionAndProduct,
+    satisfactionByRegionAndProduct: state.processedData.satisfactionByRegionAndProduct
+  });
+
+  state.geographicInsights = result;
+  console.log("✅ Geographic analysis complete");
+  return state;
+}
 
 
+// TEST AGENT 3
+await geographicAnalyst(state);
+console.log("\n\nGeographic Findings:\n", state.geographicInsights);
 
 
 
@@ -201,52 +266,12 @@ salesByDayOfWeekAndProduct
 avgSalesByProductAndMonthName
 */ 
 
-/*
-// Agent 3: Geographic Strategy Advisor
-async function geographicAnalyst(state) {
-  console.log("\n🌍 Agent 3: Geographic Strategy Advisor - Analyzing regions...");
-  
-  const prompt = ChatPromptTemplate.fromMessages([
-    ["system", `You are a geographic strategy advisor. Using previous findings:
-1. Explain regional performance differences
-2. Identify region-specific opportunities
-3. Recommend product mix adjustments by region
-4. Suggest geographic expansion or focus strategies
-
-Build on insights from previous agents.`],
-    ["user", `Pattern Findings:
-{patternFindings}
-
-Demographic Insights:
-{demographicInsights}
-
-Regional Sales:
-{regionalSales}
-
-Product Sales by Region:
-{productSalesByRegion}
-
-Provide geographic strategy recommendations.`]
-  ]);
-
-  const chain = prompt.pipe(model).pipe(new StringOutputParser());
-  
-  const result = await chain.invoke({
-    patternFindings: state.patternFindings,
-    demographicInsights: state.demographicInsights,
-    regionalSales: JSON.stringify(state.processedData.regionalSales, null, 2),
-    productSalesByRegion: JSON.stringify(state.processedData.productSalesByRegion, null, 2)
-  });
-
-  state.geographicInsights = result;
-  console.log("✅ Geographic analysis complete");
-  return state;
-}
-
 // Agent 4: Temporal Analyst
 async function temporalAnalyst(state) {
   console.log("\n📅 Agent 4: Temporal Analyst - Analyzing time patterns...");
   
+/*
+// this prompt includes the pattern findings (which muck things up)
   const prompt = ChatPromptTemplate.fromMessages([
     ["system", `You are a temporal data analyst. Using all previous findings:
 1. Identify daily and weekly patterns in sales
@@ -264,8 +289,35 @@ Demographic Insights Summary:
 Geographic Insights Summary:
 {geographicInsights}
 
-Sales by Date (Jan 1-22, 2022):
-{salesByDate}
+Product Sales by Day:
+{salesByDayOfWeekAndProduct}
+
+Average Monthly Sales:
+{avgSalesByProductAndMonthName}
+
+Analyze temporal patterns and provide insights.`]
+  ]);
+*/
+
+const prompt = ChatPromptTemplate.fromMessages([
+    ["system", `You are a temporal data analyst. Using all previous findings:
+1. Identify daily and weekly patterns in sales
+2. Spot any concerning trends or anomalies in the time series
+3. Provide forecasting insights based on observed patterns
+4. Connect temporal patterns to other findings
+
+Consider how time-based insights relate to previous agent findings.`],
+    ["user", `Demographic Insights Summary:
+{demographicInsights}
+
+Geographic Insights Summary:
+{geographicInsights}
+
+Product Sales by Day:
+{salesByDayOfWeekAndProduct}
+
+Average Monthly Sales:
+{avgSalesByProductAndMonthName}
 
 Analyze temporal patterns and provide insights.`]
   ]);
@@ -273,16 +325,24 @@ Analyze temporal patterns and provide insights.`]
   const chain = prompt.pipe(model).pipe(new StringOutputParser());
   
   const result = await chain.invoke({
-    patternFindings: state.patternFindings,
+    //patternFindings: state.patternFindings,
     demographicInsights: state.demographicInsights.substring(0, 500) + "...", // Summarize for context
     geographicInsights: state.geographicInsights.substring(0, 500) + "...",
-    salesByDate: JSON.stringify(state.processedData.salesByDate, null, 2)
+    salesByDayOfWeekAndProduct: state.processedData.salesByDayOfWeekAndProduct,
+    avgSalesByProductAndMonthName: state.processedData.salesByDayOfWeekAndProduct,
   });
 
   state.temporalInsights = result;
   console.log("✅ Temporal analysis complete");
   return state;
 }
+
+
+// TEST AGENT 4
+await temporalAnalyst(state);
+console.log("\n\nTemporal Findings:\n", state.temporalInsights);
+
+/*
 
 // Agent 5: Strategic Synthesizer
 async function strategicSynthesizer(state) {
