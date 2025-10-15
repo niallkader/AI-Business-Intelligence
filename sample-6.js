@@ -7,12 +7,14 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { StateGraph, END } from "@langchain/langgraph";
 
 
+/*
 // use local ollama for testing
 const model = new ChatOllama({
   baseUrl: "http://localhost:11434",
   model: "llama3.2",
   temperature: 0.7,
 });
+*/
 
 /*
 const model = new ChatOpenAI({
@@ -25,6 +27,11 @@ const model = new ChatOpenAI({
   //model: "openai/gpt-oss-20b"
 });
 */
+
+const model = new ChatOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  model:"gpt-4"
+})
 
 // Your processed data
 const processedData = {
@@ -42,11 +49,13 @@ const processedData = {
 };
 
 
+
+
+
 // Define the state structure
 class AgentState {
   constructor() {
     this.processedData = processedData;
-    this.patternFindings = "";
     this.demographicInsights = "";
     this.geographicInsights = "";
     this.temporalInsights = "";
@@ -54,100 +63,24 @@ class AgentState {
   }
 }
 
-const state = new AgentState();
 
+// UNCOMMENT THIS IF YOU ARE TESTING THE AGENTS SEPARATELY (without the workflow)
+//const state = new AgentState();
 
-// Agent 1: Pattern Recognition Specialist
-async function patternRecognitionAgent(state) {
-  console.log("\n🔍 Agent 1: Pattern Recognition Specialist - Starting analysis...");
-  
-  const prompt = ChatPromptTemplate.fromMessages([
-    ["system", `You are a data pattern recognition specialist. Analyze sales data to identify:
-1. Overall performance trends and patterns
-2. Product performance comparisons
-3. Any notable anomalies or outliers
-
-Be specific with numbers and percentages. Format your findings clearly.`],
-    ["user", `Analyze this sales data and identify key patterns:
-
-Product Sales by Region:
-{salesByRegionAndProduct}
-
-Product Satisfaction by Region
-{satisfactionByRegionAndProduct}
-
-Product Sales by Gender and Age:
-{salesByProductGenderAndAge}
-
-Product Sales by Week Day:
-{salesByDayOfWeekAndProduct}
-
-Average Product Sales by Month:
-{avgSalesByProductAndMonthName}
-
-Product Satisfaction by Gender and Age:
-{satisfactionByProductGenderAndAge}
-
-Provide a structured analysis with specific insights.`]
-  ]);
-
-  const chain = prompt.pipe(model).pipe(new StringOutputParser());
-  
-  const result = await chain.invoke({
-    salesByRegionAndProduct: state.processedData.salesByRegionAndProduct,
-    satisfactionByRegionAndProduct: state.processedData.satisfactionByRegionAndProduct,
-    salesByProductGenderAndAge: state.processedData.salesByProductGenderAndAge,
-    salesByDayOfWeekAndProduct: state.processedData.salesByDayOfWeekAndProduct,
-    avgSalesByProductAndMonthName: state.processedData.avgSalesByProductAndMonthName,
-    satisfactionByProductGenderAndAge: state.processedData.satisfactionByProductGenderAndAge,
-  });
-
-  state.patternFindings = result;
-  console.log("✅ Pattern analysis complete");
-  return state;
-}
 
 // So I can see how long each run takes:
 const startTime = new Date();
 
-// TEST AGENT 1
-//await patternRecognitionAgent(state);
-//console.log("Pattern Findings:\n", state.patternFindings);
 
 
 
 
-// Agent 2: Customer Segmentation Analyst
+// Agent 1: Customer Segmentation Analyst
 async function demographicAnalyst(state) {
-  console.log("\n👥 Agent 2: Customer Segmentation Analyst - Analyzing demographics...");
-  
-  /*
-  // This version of the prompt incorporates the pattern analysis findings, which may be messing things up a bit
-  const prompt = ChatPromptTemplate.fromMessages([
-    ["system", `You are a customer segmentation specialist. Using the pattern findings and demographic data:
-1. Identify which demographic segments are most valuable
-2. Find satisfaction gaps across demographics
-3. Determine which groups need attention for specific products
-4. Provide actionable demographic insights
-
-Reference the pattern findings to build on existing insights.`
-    ],
-    ["user", `Previous Pattern Findings:
-{patternFindings}
-
-Product Sales by Gender and Age Group:
-{salesByProductGenderAndAge}
-
-Product Satisfaction by Gender and Age Group:
-{satisfactionByProductGenderAndAge}
-
-Provide demographic insights and recommendations.`]
-  ]);
-*/
-
+  console.log("\n👥 Agent 1: Customer Segmentation Analyst - Analyzing demographics...");
   // In this version of the prompt template I removed any mention of the pattern recognition results
   const prompt = ChatPromptTemplate.fromMessages([
-    ["system", `You are a customer segmentation specialist.:
+    ["system", `You are a data analyst and customer segmentation specialist.:
 1. Identify which demographic segments are most valuable
 2. Find satisfaction gaps across demographics
 3. Determine which groups need attention for specific products
@@ -167,7 +100,6 @@ Provide demographic insights and recommendations.`]
   const chain = prompt.pipe(model).pipe(new StringOutputParser());
   
   const result = await chain.invoke({
-    //patternFindings: state.patternFindings,  // I decided to remove this from the prompt template
     salesByProductGenderAndAge: state.processedData.salesByProductGenderAndAge,
     satisfactionByProductGenderAndAge: state.processedData.satisfactionByProductGenderAndAge
   });
@@ -177,53 +109,24 @@ Provide demographic insights and recommendations.`]
   return state;
 }
 
-// TEST AGENT 2
-await demographicAnalyst(state);
-console.log("\n\nDemographic Findings:\n", state.demographicInsights);
+// // TEST AGENT 1
+// await demographicAnalyst(state);
+//console.log("\n\nDemographic Findings:\n", state.demographicInsights);
 
 
 
-// Agent 3: Geographic Strategy Advisor
+// Agent 2: Geographic Strategy Advisor
 async function geographicAnalyst(state) {
-  console.log("\n🌍 Agent 3: Geographic Strategy Advisor - Analyzing regions...");
-  
-  /*
-  // this version of the prompt includes the pattern findings (which seem to muck things up)
-  const prompt = ChatPromptTemplate.fromMessages([
-    ["system", `You are a geographic strategy advisor. Using previous findings:
-1. Explain regional performance differences
-2. Identify region-specific opportunities
-3. Recommend product mix adjustments by region
-4. Suggest geographic expansion or focus strategies
-
-Build on insights from previous agents.`],
-    ["user", `Pattern Findings:
-{patternFindings}
-
-Demographic Insights:
-{demographicInsights}
-
-Product Sales by Region:
-{salesByRegionAndProduct}
-
-Product Satisfaction by Region:
-{satisfactionByRegionAndProduct}
-
-Provide geographic strategy recommendations.`]
-  ]);
-  */
+  console.log("\n🌍 Agent 2: Geographic Strategy Advisor - Analyzing regions...");
 
   const prompt = ChatPromptTemplate.fromMessages([
-    ["system", `You are a geographic strategy advisor. Use the demographic insights, and the product sales and satisfaction data to do the following:
+    ["system", `You are a data analyist and geographic strategy advisor. Use the product sales and satisfaction data to do the following:
 1. Explain regional performance differences
 2. Identify region-specific opportunities
 3. Recommend product mix adjustments by region
 4. Suggest geographic expansion or focus strategies
 Build on insights from previous agents.`],
-    ["user", `Demographic Insights:
-{demographicInsights}
-
-Product Sales by Region:
+    ["user", `Product Sales by Region:
 {salesByRegionAndProduct}
 
 Product Satisfaction by Region:
@@ -234,9 +137,7 @@ Provide geographic strategy recommendations.`]
 
   const chain = prompt.pipe(model).pipe(new StringOutputParser());
   
-  const result = await chain.invoke({
-    //patternFindings: state.patternFindings, // I removed this
-    demographicInsights: state.demographicInsights,
+  const result = await chain.invoke({ 
     salesByRegionAndProduct: state.processedData.salesByRegionAndProduct,
     satisfactionByRegionAndProduct: state.processedData.satisfactionByRegionAndProduct
   });
@@ -247,73 +148,26 @@ Provide geographic strategy recommendations.`]
 }
 
 
-// TEST AGENT 3
-await geographicAnalyst(state);
-console.log("\n\nGeographic Findings:\n", state.geographicInsights);
+// // TEST AGENT 2
+// await geographicAnalyst(state);
+// console.log("\n\nGeographic Findings:\n", state.geographicInsights);
 
 
 
 
-
-
-
-/*
-salesByRegionAndProduct
-satisfactionByRegionAndProduct
-salesByProductGenderAndAge
-satisfactionByProductGenderAndAge
-salesByDayOfWeekAndProduct
-avgSalesByProductAndMonthName
-*/ 
-
-// Agent 4: Temporal Analyst
+// Agent 3: Temporal Analyst
 async function temporalAnalyst(state) {
-  console.log("\n📅 Agent 4: Temporal Analyst - Analyzing time patterns...");
-  
-/*
-// this prompt includes the pattern findings (which muck things up)
-  const prompt = ChatPromptTemplate.fromMessages([
-    ["system", `You are a temporal data analyst. Using all previous findings:
-1. Identify daily and weekly patterns in sales
-2. Spot any concerning trends or anomalies in the time series
-3. Provide forecasting insights based on observed patterns
-4. Connect temporal patterns to other findings
-
-Consider how time-based insights relate to previous agent findings.`],
-    ["user", `Pattern Findings:
-{patternFindings}
-
-Demographic Insights Summary:
-{demographicInsights}
-
-Geographic Insights Summary:
-{geographicInsights}
-
-Product Sales by Day:
-{salesByDayOfWeekAndProduct}
-
-Average Monthly Sales:
-{avgSalesByProductAndMonthName}
-
-Analyze temporal patterns and provide insights.`]
-  ]);
-*/
+  console.log("\n📅 Agent 3: Temporal Analyst - Analyzing time patterns...");
 
 const prompt = ChatPromptTemplate.fromMessages([
-    ["system", `You are a temporal data analyst. Using all previous findings:
+    ["system", `You are a temporal sales data analyst. Use the product and monthly sales data to:
 1. Identify daily and weekly patterns in sales
 2. Spot any concerning trends or anomalies in the time series
 3. Provide forecasting insights based on observed patterns
 4. Connect temporal patterns to other findings
 
 Consider how time-based insights relate to previous agent findings.`],
-    ["user", `Demographic Insights Summary:
-{demographicInsights}
-
-Geographic Insights Summary:
-{geographicInsights}
-
-Product Sales by Day:
+    ["user", `Product Sales by Day:
 {salesByDayOfWeekAndProduct}
 
 Average Monthly Sales:
@@ -325,9 +179,9 @@ Analyze temporal patterns and provide insights.`]
   const chain = prompt.pipe(model).pipe(new StringOutputParser());
   
   const result = await chain.invoke({
-    //patternFindings: state.patternFindings,
-    demographicInsights: state.demographicInsights.substring(0, 500) + "...", // Summarize for context
-    geographicInsights: state.geographicInsights.substring(0, 500) + "...",
+    // I removed the insights from the other agents, so that I could run them all in parallel
+    //demographicInsights: state.demographicInsights.substring(0, 500) + "...", // Summarize for context
+    //geographicInsights: state.geographicInsights.substring(0, 500) + "...",
     salesByDayOfWeekAndProduct: state.processedData.salesByDayOfWeekAndProduct,
     avgSalesByProductAndMonthName: state.processedData.salesByDayOfWeekAndProduct,
   });
@@ -338,15 +192,15 @@ Analyze temporal patterns and provide insights.`]
 }
 
 
-// TEST AGENT 4
-await temporalAnalyst(state);
-console.log("\n\nTemporal Findings:\n", state.temporalInsights);
+// // TEST AGENT 3
+// await temporalAnalyst(state);
+// console.log("\n\nTemporal Findings:\n", state.temporalInsights);
 
-/*
 
-// Agent 5: Strategic Synthesizer
+
+// Agent 4: Strategic Synthesizer
 async function strategicSynthesizer(state) {
-  console.log("\n📊 Agent 5: Strategic Synthesizer - Creating final report...");
+  console.log("\n📊 Agent 4: Strategic Synthesizer - Creating final report...");
   
   const prompt = ChatPromptTemplate.fromMessages([
     ["system", `You are a strategic business advisor creating an executive summary. Synthesize all findings into:
@@ -359,9 +213,6 @@ async function strategicSynthesizer(state) {
 
 Be specific, actionable, and prioritize recommendations by potential impact.`],
     ["user", `Synthesize these findings into a comprehensive strategic report:
-
-PATTERN RECOGNITION FINDINGS:
-{patternFindings}
 
 DEMOGRAPHIC INSIGHTS:
 {demographicInsights}
@@ -378,7 +229,6 @@ Create a clear, actionable strategic report.`]
   const chain = prompt.pipe(model).pipe(new StringOutputParser());
   
   const result = await chain.invoke({
-    patternFindings: state.patternFindings,
     demographicInsights: state.demographicInsights,
     geographicInsights: state.geographicInsights,
     temporalInsights: state.temporalInsights
@@ -389,12 +239,19 @@ Create a clear, actionable strategic report.`]
   return state;
 }
 
+// // TEST AGENT 5
+// await strategicSynthesizer(state);
+// console.log("--------------------------------------------");
+// console.log("\n\nStrategic Findings:\n", state.finalReport);
+
+
+
+
 // Build the workflow graph
 function buildWorkflow() {
   const workflow = new StateGraph({
     channels: {
       processedData: null,
-      patternFindings: null,
       demographicInsights: null,
       geographicInsights: null,
       temporalInsights: null,
@@ -403,19 +260,32 @@ function buildWorkflow() {
   });
 
   // Add nodes
-  workflow.addNode("patternRecognition", patternRecognitionAgent);
   workflow.addNode("demographic", demographicAnalyst);
   workflow.addNode("geographic", geographicAnalyst);
   workflow.addNode("temporal", temporalAnalyst);
   workflow.addNode("synthesizer", strategicSynthesizer);
 
+  /*
+  // I tried to get agents 1-3 to run in parallel, but it didn't work
   // Define the flow
-  workflow.addEdge("__start__", "patternRecognition");
-  workflow.addEdge("patternRecognition", "demographic");
+  // start the demo, geo, and tempo agents in parallel
+  workflow.addEdge("__start__", "demographic");
+  workflow.addEdge("__start__", "geographic");
+  workflow.addEdge("__start__", "temporal");
+  // start the synthesizer only when the demo, geo, and tempo agents are done
+  workflow.addEdge("demographic", "synthesizer");
+  workflow.addEdge("geographic", "synthesizer");
+  workflow.addEdge("temporal", "synthesizer");
+  workflow.addEdge("synthesizer", END);
+  */
+
+  // Define the flow
+  workflow.addEdge("__start__", "demographic");
   workflow.addEdge("demographic", "geographic");
   workflow.addEdge("geographic", "temporal");
   workflow.addEdge("temporal", "synthesizer");
   workflow.addEdge("synthesizer", END);
+
 
   return workflow.compile();
 }
@@ -423,7 +293,6 @@ function buildWorkflow() {
 // Main execution
 async function main() {
   console.log("🚀 Starting Sales Analysis Agentic Workflow");
-  console.log(`Using: ${USE_OPENAI ? 'OpenAI' : 'Ollama'}\n`);
   console.log("=" .repeat(60));
 
   const workflow = buildWorkflow();
@@ -441,8 +310,6 @@ async function main() {
     // Save all outputs to file
     const fullReport = {
       timestamp: new Date().toISOString(),
-      model: USE_OPENAI ? 'OpenAI GPT-4' : 'Ollama Llama3.1',
-      patternFindings: finalState.patternFindings,
       demographicInsights: finalState.demographicInsights,
       geographicInsights: finalState.geographicInsights,
       temporalInsights: finalState.temporalInsights,
@@ -457,7 +324,7 @@ async function main() {
 
 // Run the workflow
 main().catch(console.error);
-*/
+
 
 const endTime = new Date();
 const runTimeInSeconds = (endTime - startTime)/1000
