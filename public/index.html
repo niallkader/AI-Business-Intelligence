@@ -65,11 +65,47 @@
 
 <script type="text/javascript">
 
+  // this object will get posted to the server to feed to the agents
+  postCSVData = {}
+  
+  function runWorkflow(){
+  
+    // Send processedData to start the workflow
+    axios.post('/api/run-workflow', { processedData:postCSVData })
+      .then(response => {
+        console.log('Workflow started:', response.data);
+      })
+      .catch(error => {
+        console.error('Error starting workflow:', error);
+      });
+
+
+    // Listen for progress updates via SSE
+    const eventSource = new EventSource('/api/events');
+
+    eventSource.addEventListener('progress', (event) => {
+      const data = JSON.parse(event.data);
+      console.log('Progress update:', data);
+      // You can update your UI here
+    });
+
+    eventSource.addEventListener('done', (event) => {
+      const data = JSON.parse(event.data);
+      console.log('Workflow complete:', data);
+      eventSource.close(); // Optionally close connection
+    });
+
+    eventSource.addEventListener('error', (event) => {
+      console.error('SSE error:', event);
+    });
+  
+  }
+
+
 	google.charts.load('current', {'packages':['corechart']});
 	google.charts.setOnLoadCallback(() => {
 
-    // this object will get posted to the server to feed to the agents
-    postCSVData = {}
+    
     
     const inputFile = document.querySelector("#file");  
     const btnReport = document.querySelector("#btnReport");
@@ -88,6 +124,7 @@
     })
 
     btnReport.addEventListener("click", async () => {
+      /*
       const modelSelect = document.querySelector("#modelSelect");
       const model = modelSelect.value;
       console.log("Model selected: " + model)
@@ -100,6 +137,9 @@
         console.error("Error generating report:", error);
         divStatus.innerText = "Error generating report. Please try again."
       }
+      */
+
+      runWorkflow();
     })
 
         
