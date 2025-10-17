@@ -10,12 +10,6 @@ import {
   strategicSynthesizer 
 } from "../agents.js";
 
-import OpenAI from "openai";
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 const router = Router();
 
 // Example route
@@ -23,62 +17,56 @@ router.get('/health', (req, res) => {
   res.json({ status: 'API is healthy' });
 });
 
-/*
-// Test route
-import OpenAI from "openai";
-
-router.post('/test', async (req, res) => {
-  const { context } = req.body;
-  const systemPrompt = "You are a business intelligence assistant. Analyze the following data and provide insights.";
-  try {
-    const response = await client.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: context }
-      ],
-    });
-    res.json({ response: response.choices[0].message.content });
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
-*/
-
-let clients = [];
+// Store clients for each workflow
+const clientsMap = {};
 
 // SSE endpoint
-router.get("/events", (req, res) => {
+router.get("/events/:workflowId", (req, res) => {
+  const workflowId = req.params.workflowId;
+  
   res.set({
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
     "Connection": "keep-alive"
   });
   res.flushHeaders();
-  clients.push(res);
+
+  // Initialize the clients array for this workflowId if it doesn't exist
+  if (!clientsMap[workflowId]) {
+    clientsMap[workflowId] = []; 
+    // setting clientsMap[workflowId] to an array allow you to have multiple sse connections being notified
+    // of a single workflow, not really needed right now, but may be useful in the future!
+  }
+  
+  clientsMap[workflowId].push(res);
 
   req.on("close", () => {
-    clients = clients.filter(c => c !== res);
+    clientsMap[workflowId] = clientsMap[workflowId].filter(c => c !== res);
+    if (clientsMap[workflowId].length === 0) {
+      delete clientsMap[workflowId]; // Clean up if no clients are left
+    }
+    res.end();
   });
 });
 
-function sendSSE(event, data) {
+function sendSSE(workflowId, event, data) {
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  clients.forEach(res => res.write(payload));
+  if (clientsMap[workflowId]) {
+    clientsMap[workflowId].forEach(res => res.write(payload));
+  }
 }
 
 // Wrap agent functions to emit SSE
-function wrapAgent(agentFn, stepName) {
+function wrapAgent(agentFn, stepName, workflowId) {
   return async function(state) {
     const resultState = await agentFn(state);
-    sendSSE("progress", { step: stepName, result: resultState });
+    sendSSE(workflowId, "progress", { step: stepName, result: resultState });
     return resultState;
   };
 }
 
 // Build the workflow graph with wrapped agents
-function buildWorkflow() {
+function buildWorkflow(workflowId) {
   const workflow = new StateGraph({
     channels: {
       processedData: null,
@@ -89,10 +77,10 @@ function buildWorkflow() {
     }
   });
 
-  workflow.addNode("demographic", wrapAgent(demographicAnalyst, "demographic"));
-  workflow.addNode("geographic", wrapAgent(geographicAnalyst, "geographic"));
-  workflow.addNode("temporal", wrapAgent(temporalAnalyst, "temporal"));
-  workflow.addNode("synthesizer", wrapAgent(strategicSynthesizer, "synthesizer"));
+  workflow.addNode("demographic", wrapAgent(demographicAnalyst, "demographic", workflowId));
+  workflow.addNode("geographic", wrapAgent(geographicAnalyst, "geographic", workflowId));
+  workflow.addNode("temporal", wrapAgent(temporalAnalyst, "temporal", workflowId));
+  workflow.addNode("synthesizer", wrapAgent(strategicSynthesizer, "synthesizer", workflowId));
 
   workflow.addEdge("__start__", "demographic");
   workflow.addEdge("demographic", "geographic");
@@ -104,21 +92,25 @@ function buildWorkflow() {
 }
 
 // POST endpoint to trigger workflow
+// POST endpoint to trigger workflow
 router.post("/run-workflow", async (req, res) => {
   const processedData = req.body.processedData;
   if (!processedData) return res.status(400).json({ error: "Missing processedData" });
 
-  const workflow = buildWorkflow();
+  const workflowId = Date.now(); // Unique ID for this workflow
+  const workflow = buildWorkflow(workflowId);
   const initialState = new AgentState();
   initialState.processedData = processedData;
 
+  // Send the workflowId immediately
+  res.json({ status: "started", workflowId });
+
   try {
-    const finalState = await workflow.invoke(initialState);
-    sendSSE("done", { finalReport: finalState.finalReport });
-    res.json({ status: "started" });
+    // Invoke the workflow asynchronously
+    await workflow.invoke(initialState);
+    sendSSE(workflowId, "done", { finalReport: initialState.finalReport });
   } catch (error) {
-    sendSSE("error", { error: error.message });
-    res.status(500).json({ error: error.message });
+    sendSSE(workflowId, "error", { error: error.message });
   }
 });
 

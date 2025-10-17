@@ -68,37 +68,43 @@
   // this object will get posted to the server to feed to the agents
   postCSVData = {}
   
-  function runWorkflow(){
+  async function runWorkflow(){
   
-    // Send processedData to start the workflow
-    axios.post('/api/run-workflow', { processedData:postCSVData })
-      .then(response => {
-        console.log('Workflow started:', response.data);
-      })
-      .catch(error => {
-        console.error('Error starting workflow:', error);
+    // // Send processedData to start the workflow
+    // axios.post('/api/run-workflow', { processedData:postCSVData })
+    //   .then(response => {
+    //     console.log('Workflow started:', response.data);
+    //   })
+    //   .catch(error => {
+    //     console.error('Error starting workflow:', error);
+    //   });
+
+    try{
+      const response = await axios.post('/api/run-workflow', { processedData:postCSVData });
+      console.log('Workflow started:', response.data);
+      
+      // Listen for progress updates via SSE
+      const workflowId = response.data.workflowId; // Get the workflow ID from the response
+      const eventSource = new EventSource(`/api/events/${workflowId}`);
+
+      eventSource.addEventListener('progress', (event) => {
+        const data = JSON.parse(event.data);
+        console.log('Progress update:', data);
+        // You can update your UI here
       });
 
+      eventSource.addEventListener('done', (event) => {
+        const data = JSON.parse(event.data);
+        console.log('Workflow complete:', data);
+        eventSource.close(); // Optionally close connection
+      });
 
-    // Listen for progress updates via SSE
-    const eventSource = new EventSource('/api/events');
-
-    eventSource.addEventListener('progress', (event) => {
-      const data = JSON.parse(event.data);
-      console.log('Progress update:', data);
-      // You can update your UI here
-    });
-
-    eventSource.addEventListener('done', (event) => {
-      const data = JSON.parse(event.data);
-      console.log('Workflow complete:', data);
-      eventSource.close(); // Optionally close connection
-    });
-
-    eventSource.addEventListener('error', (event) => {
-      console.error('SSE error:', event);
-    });
-  
+      eventSource.addEventListener('error', (event) => {
+        console.error('SSE error:', event);
+      });
+    }catch(error){
+      console.error('Error starting workflow:', error);
+    }
   }
 
 
