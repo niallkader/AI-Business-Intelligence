@@ -10,6 +10,9 @@ import {
   strategicSynthesizer 
 } from "../agents.js";
 
+import markdownit from 'markdown-it'
+const md = markdownit();
+
 const router = Router();
 
 // Example route
@@ -92,7 +95,6 @@ function buildWorkflow(workflowId) {
 }
 
 // POST endpoint to trigger workflow
-// POST endpoint to trigger workflow
 router.post("/run-workflow", async (req, res) => {
   const processedData = req.body.processedData;
   if (!processedData) return res.status(400).json({ error: "Missing processedData" });
@@ -107,8 +109,8 @@ router.post("/run-workflow", async (req, res) => {
 
   try {
     // Invoke the workflow asynchronously
-    await workflow.invoke(initialState);
-    sendSSE(workflowId, "done", { finalReport: initialState.finalReport });
+    const finalState = await workflow.invoke(initialState);
+    sendSSE(workflowId, "done", { finalReport: md.render(finalState.finalReport) });
   } catch (error) {
     sendSSE(workflowId, "error", { error: error.message });
   }

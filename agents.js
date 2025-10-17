@@ -16,7 +16,7 @@ const model = new ChatOllama({
 });
 */
 
-/*
+
 const model = new ChatOpenAI({
   apiKey: process.env.NVIDIA_API_KEY,
   configuration: {
@@ -26,12 +26,14 @@ const model = new ChatOpenAI({
   //model:"openai/gpt-oss-120b" // much slower than meta/llama3
   //model: "openai/gpt-oss-20b"
 });
-*/
 
+
+/*
 const model = new ChatOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   model:"gpt-4"
 })
+*/
 
 
 // // Your processed data
@@ -181,7 +183,7 @@ GEOGRAPHIC INSIGHTS:
 TEMPORAL INSIGHTS:
 {temporalInsights}
 
-Create a clear, actionable strategic report.`]
+Create a clear, actionable strategic report. Make sure your response is markdown.`]
   ]);
 
   const chain = prompt.pipe(model).pipe(new StringOutputParser());
