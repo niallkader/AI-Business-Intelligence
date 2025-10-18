@@ -13,6 +13,8 @@ import {
 import markdownit from 'markdown-it'
 const md = markdownit();
 
+import {sendEmailNotification} from '../emailer.js'
+
 const router = Router();
 
 // Example route
@@ -96,8 +98,9 @@ function buildWorkflow(workflowId) {
 
 // POST endpoint to trigger workflow
 router.post("/run-workflow", async (req, res) => {
-  const processedData = req.body.processedData;
+  const {processedData, password} = req.body;
   if (!processedData) return res.status(400).json({ error: "Missing processedData" });
+  if (password != process.env.PASSWORD) return res.status(401).json({ error: "Invalid password" });
 
   const workflowId = Date.now(); // Unique ID for this workflow
   const workflow = buildWorkflow(workflowId);
@@ -108,6 +111,7 @@ router.post("/run-workflow", async (req, res) => {
   res.json({ status: "started", workflowId });
 
   try {
+    sendEmailNotification("AI Workflow running: " + new Date().toDateString(), () => console.log("Email sent"))
     // Invoke the workflow asynchronously
     const finalState = await workflow.invoke(initialState);
     sendSSE(workflowId, "done", { finalReport: md.render(finalState.finalReport) });
