@@ -1,2 +1,2 @@
-React and google charts:
-https://www.react-google-charts.com/examples/
+
+# AI Capstone Project - Business Intelligence AI Workflow

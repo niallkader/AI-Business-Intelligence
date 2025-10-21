@@ -80,3 +80,22 @@ header, footer{
   margin-bottom: 22px;
   font-weight: normal;
 }
+
+#analyze, #status{
+  display:none;
+}
+
+#txtPassword{
+  padding: 10px;
+}
+
+#csv-link{
+  display: flex; 
+  align-items:center; 
+  text-decoration:none;
+}
+
+#btnProject{
+  padding:10px; 
+  font-weight:bold;
+}

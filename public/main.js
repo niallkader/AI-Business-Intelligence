@@ -14,26 +14,26 @@ window.addEventListener("load", () => {
         <li>
           Enter the password, which you should have gotten from me:
           <br>
-          <input type="password" id="txtPassword" placeholder="Enter the password here" style="padding:10px">
+          <input type="password" id="txtPassword" placeholder="Enter the password here">
           <br><br>
         </li>
         <li>
           Download the dataset used for this project:
           <br>
-          <a href="/sales_data.csv" style="display: flex; align-items:center; text-decoration:none;">
+          <a id="csv-link" href="/sales_data.csv">
             <img src="/excel-icon.png" alt="Excel icon">&nbsp;&nbsp;Click to download the sales data file
           </a>
           <br>
           Take a quick look at the data file, you'll upload it for processing when you go to the project.
         </li>
       </ol>
-      <div style="text-align:center">
-        <input id="btnProject" type="button" value="Go to Project" style="padding:10px; font-weight:bold">
+      <div>
+        <input id="btnProject" type="button" value="Go to Project">
       </div>
     </div>
   `;
 
-  const hideModal = showModal("Welcome my AI Capstone Project!", introContent);
+  const hideModal = showModal("Welcome My AI Capstone Project!", introContent);
   const txtPassword = document.querySelector("#txtPassword");
   txtPassword.focus();
   
