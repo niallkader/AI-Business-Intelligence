@@ -22,7 +22,8 @@ const model = new ChatOpenAI({
   configuration: {
     baseURL: "https://integrate.api.nvidia.com/v1",
   },
-  model: "meta/llama3-70b-instruct",
+  model: "nvidia/llama-3.1-nemotron-nano-vl-8b-v1",
+  //model: "meta/llama3-70b-instruct",
   //model:"openai/gpt-oss-120b" // much slower than meta/llama3
   //model: "openai/gpt-oss-20b"
 });
